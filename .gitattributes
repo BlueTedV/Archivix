@@ -1,0 +1,62 @@
+# .gitattributes — normalize line endings for Flutter projects
+
+# Treat files as text by default and let Git detect specifics
+* text=auto
+
+# Force LF for source files (Unix-style, recommended for Flutter)
+*.dart    text eol=lf
+*.java    text eol=lf
+*.kt      text eol=lf
+*.swift   text eol=lf
+*.c       text eol=lf
+*.cpp     text eol=lf
+*.cc      text eol=lf
+*.h       text eol=lf
+*.mm      text eol=lf
+*.m       text eol=lf
+*.cmake   text eol=lf
+*.gradle  text eol=lf
+*.properties text eol=lf
+*.xml     text eol=lf
+*.json    text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+*.sh      text eol=lf
+pubspec.lock text eol=lf
+*.lock    text eol=lf
+
+# Windows batch files should keep CRLF
+*.bat     text eol=crlf
+*.ps1     text eol=crlf
+
+# Mark common binary asset types as binary (no EOL conversions & smaller diffs)
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.tiff    binary
+*.webp    binary
+*.mp4     binary
+*.mp3     binary
+*.wav     binary
+*.ogg     binary
+*.jar     binary
+*.aar     binary
+*.keystore binary
+*.so      binary
+*.dll     binary
+*.dylib   binary
+*.zip     binary
+*.tar     binary
+*.gz      binary
+*.7z      binary
+*.pdf     binary
+*.ttf     binary
+*.otf     binary
+*.woff    binary
+*.woff2   binary
+
+# Optional: treat certain generated files as binary to avoid accidental diffs
+android/.gradle/** binary
+**/GeneratedPluginRegistrant.* text eol=lf
