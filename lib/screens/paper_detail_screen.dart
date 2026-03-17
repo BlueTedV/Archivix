@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'pdf_viewer_screen.dart';
 
 class PaperDetailScreen extends StatefulWidget {
@@ -138,19 +139,41 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
   Future<void> _downloadPDF() async {
     if (_paper == null || _paper!['pdf_url'] == null) return;
 
-    // Request storage permission
+    // Request storage permission on Android
     if (Platform.isAndroid) {
-      final status = await Permission.storage.request();
-      if (!status.isGranted) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Storage permission is required to download files'),
-              backgroundColor: Color(0xFF991B1B),
-            ),
-          );
+      // Check Android version
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      
+      if (androidInfo.version.sdkInt < 33) {
+        // Android 12 and below - Need storage permission
+        PermissionStatus status = await Permission.storage.status;
+        
+        if (status.isDenied) {
+          // Request permission - this will show the popup automatically
+          status = await Permission.storage.request();
         }
-        return;
+        
+        if (status.isDenied) {
+          // User denied permission
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Storage permission is required to download files'),
+                backgroundColor: Color(0xFF991B1B),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+        
+        if (status.isPermanentlyDenied) {
+          // User denied permission permanently - show dialog to go to settings
+          if (mounted) {
+            _showPermissionDialog();
+          }
+          return;
+        }
       }
     }
 
@@ -169,29 +192,48 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
       final response = await http.get(Uri.parse(signedUrl));
       
       if (response.statusCode == 200) {
-        // Get download directory
-        Directory? directory;
-        if (Platform.isAndroid) {
-          directory = await getExternalStorageDirectory();
-        } else {
-          directory = await getApplicationDocumentsDirectory();
-        }
-
-        // Create Downloads folder if it doesn't exist
-        final downloadsDir = Directory('${directory!.path}/Downloads');
-        if (!await downloadsDir.exists()) {
-          await downloadsDir.create(recursive: true);
-        }
-
-        // Save file
         final fileName = _paper!['pdf_file_name'] ?? 'paper.pdf';
-        final file = File('${downloadsDir.path}/$fileName');
-        await file.writeAsBytes(response.bodyBytes);
+        String filePath;
+
+        if (Platform.isAndroid) {
+          // Save to PUBLIC Downloads folder (where users expect it!)
+          final directory = Directory('/storage/emulated/0/Download');
+          
+          // Create file in Downloads
+          final file = File('${directory.path}/$fileName');
+          await file.writeAsBytes(response.bodyBytes);
+          filePath = file.path;
+        } else {
+          // iOS - use app documents directory
+          final directory = await getApplicationDocumentsDirectory();
+          final file = File('${directory.path}/$fileName');
+          await file.writeAsBytes(response.bodyBytes);
+          filePath = file.path;
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Downloaded to: ${file.path}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '✅ Download Complete!',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    fileName,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Check your Downloads folder',
+                    style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
               backgroundColor: const Color(0xFF059669),
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
@@ -209,7 +251,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${error.toString()}'),
+            content: Text('Download failed: ${error.toString()}'),
             backgroundColor: const Color(0xFF991B1B),
           ),
         );
@@ -221,6 +263,49 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
         });
       }
     }
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Storage Permission Required',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        content: const Text(
+          'This app needs storage permission to download PDF files. '
+          'Please enable it in Settings → Permissions → Storage.',
+          style: TextStyle(fontSize: 14, height: 1.5),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+          side: const BorderSide(color: Color(0xFFD1D5DB)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF6B7280)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              openAppSettings(); // Opens app settings page
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4A5568),
+            ),
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatFileSize(int? bytes) {
