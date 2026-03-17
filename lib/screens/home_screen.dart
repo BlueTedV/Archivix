@@ -35,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: const Color(0xFFD1D5DB), width: 1),
+            top: BorderSide(color: const AppColors.border, width: 1),
           ),
         ),
         child: BottomNavigationBar(
@@ -47,8 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF4A5568),
-          unselectedItemColor: const Color(0xFF9CA3AF),
+          selectedItemColor: const AppColors.slatePrimary,
+          unselectedItemColor: const AppColors.textSubtle,
           selectedFontSize: 12,
           unselectedFontSize: 12,
           elevation: 8,

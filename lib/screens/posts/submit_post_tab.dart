@@ -69,7 +69,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading categories: ${error.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
           ),
         );
       }
@@ -97,7 +97,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Total file size too large! Maximum 100MB'),
-                backgroundColor: Color(0xFF991B1B),
+                backgroundColor: AppColors.errorDark,
               ),
             );
           }
@@ -113,7 +113,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error picking files: ${e.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
           ),
         );
       }
@@ -219,7 +219,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Question posted successfully!'),
-            backgroundColor: Color(0xFF059669),
+            backgroundColor: AppColors.success,
           ),
         );
         
@@ -236,7 +236,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${error.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
           ),
         );
       }
@@ -270,19 +270,19 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFDEEBFF),
-                  border: Border.all(color: const Color(0xFF4A5568)),
+                  border: Border.all(color: const AppColors.slatePrimary),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 20, color: Color(0xFF4A5568)),
+                    const Icon(Icons.info_outline, size: 20, color: AppColors.slatePrimary),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Ask research-related questions and get answers from the community. You can attach images, videos, or documents.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: const Color(0xFF4A5568).withOpacity(0.9),
+                          color: const AppColors.slatePrimary.withOpacity(0.9),
                         ),
                       ),
                     ),
@@ -297,7 +297,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF374151),
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -306,21 +306,21 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 maxLength: 200,
                 decoration: InputDecoration(
                   hintText: 'e.g., How do I analyze RNA-seq data?',
-                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                  hintStyle: const TextStyle(color: AppColors.textSubtle, fontSize: 13),
                   counterText: '',
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                    borderSide: const BorderSide(color: AppColors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                    borderSide: const BorderSide(color: AppColors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: Color(0xFF4A5568), width: 2),
+                    borderSide: const BorderSide(color: AppColors.slatePrimary, width: 2),
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
@@ -342,7 +342,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF374151),
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -352,20 +352,20 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 maxLength: 5000,
                 decoration: InputDecoration(
                   hintText: 'Provide more details about your question...',
-                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                  hintStyle: const TextStyle(color: AppColors.textSubtle, fontSize: 13),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                    borderSide: const BorderSide(color: AppColors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                    borderSide: const BorderSide(color: AppColors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: Color(0xFF4A5568), width: 2),
+                    borderSide: const BorderSide(color: AppColors.slatePrimary, width: 2),
                   ),
                   contentPadding: const EdgeInsets.all(14),
                 ),
@@ -387,7 +387,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF374151),
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -395,7 +395,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border.all(color: const Color(0xFFD1D5DB)),
+                  border: Border.all(color: const AppColors.border),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: DropdownButton<String>(
@@ -426,7 +426,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                   Container(
                     width: 3,
                     height: 18,
-                    color: const Color(0xFF4A5568),
+                    color: const AppColors.slatePrimary,
                   ),
                   const SizedBox(width: 8),
                   const Text(
@@ -434,7 +434,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ],
@@ -444,7 +444,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 'Add images, videos, or documents to support your question',
                 style: TextStyle(
                   fontSize: 12,
-                  color: const Color(0xFF6B7280),
+                  color: const AppColors.textMuted,
                 ),
               ),
               const SizedBox(height: 12),
@@ -455,8 +455,8 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 icon: const Icon(Icons.attach_file, size: 18),
                 label: const Text('Add Files'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF4A5568),
-                  side: const BorderSide(color: Color(0xFF4A5568)),
+                  foregroundColor: const AppColors.slatePrimary,
+                  side: const BorderSide(color: AppColors.slatePrimary),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -476,8 +476,8 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
-                      border: Border.all(color: const Color(0xFFD1D5DB)),
+                      color: const AppColors.surfaceLight,
+                      border: Border.all(color: const AppColors.border),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Row(
@@ -490,7 +490,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                                   ? Icons.videocam
                                   : Icons.insert_drive_file,
                           size: 24,
-                          color: const Color(0xFF4A5568),
+                          color: const AppColors.slatePrimary,
                         ),
                         const SizedBox(width: 12),
                         // File info
@@ -503,7 +503,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF374151),
+                                  color: AppColors.textSecondary,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -513,7 +513,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                                 '${(file.size / 1024 / 1024).toStringAsFixed(2)} MB • ${extension.toUpperCase()}',
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  color: Color(0xFF9CA3AF),
+                                  color: AppColors.textSubtle,
                                 ),
                               ),
                             ],
@@ -525,7 +525,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                           onPressed: () => _removeAttachment(index),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          color: const Color(0xFF991B1B),
+                          color: const AppColors.errorDark,
                         ),
                       ],
                     ),
@@ -539,7 +539,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 LinearProgressIndicator(
                   value: _uploadProgress,
                   backgroundColor: const Color(0xFFE5E7EB),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4A5568)),
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.slatePrimary),
                   minHeight: 8,
                 ),
                 const SizedBox(height: 12),
@@ -548,7 +548,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                     'Uploading... ${(_uploadProgress * 100).toInt()}%',
                     style: const TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF6B7280),
+                      color: AppColors.textMuted,
                     ),
                   ),
                 ),
@@ -562,7 +562,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 child: ElevatedButton(
                   onPressed: _isUploading ? null : _submitPost,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A5568),
+                    backgroundColor: const AppColors.slatePrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(4),
                     ),

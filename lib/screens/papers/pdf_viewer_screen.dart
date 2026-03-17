@@ -57,7 +57,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading PDF: ${e.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
           ),
         );
       }
@@ -112,7 +112,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                     'Loading PDF...',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF6B7280),
+                      color: AppColors.textMuted,
                     ),
                   ),
                 ],
@@ -142,7 +142,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                         const Icon(
                           Icons.error_outline,
                           size: 48,
-                          color: Color(0xFF991B1B),
+                          color: AppColors.errorDark,
                         ),
                         const SizedBox(height: 16),
                         const Text(
@@ -150,7 +150,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF991B1B),
+                            color: AppColors.errorDark,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -159,7 +159,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF6B7280),
+                            color: AppColors.textMuted,
                           ),
                         ),
                       ],

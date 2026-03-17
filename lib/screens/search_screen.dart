@@ -32,10 +32,10 @@ class _SearchScreenState extends State<SearchScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search papers, authors, topics...',
-                hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF6B7280)),
+                hintStyle: const TextStyle(color: AppColors.textSubtle),
+                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear, color: Color(0xFF6B7280)),
+                  icon: const Icon(Icons.clear, color: AppColors.textMuted),
                   onPressed: () {
                     _searchController.clear();
                   },
@@ -50,7 +50,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 Container(
                   width: 3,
                   height: 20,
-                  color: const Color(0xFF4A5568),
+                  color: const AppColors.slatePrimary,
                 ),
                 const SizedBox(width: 8),
                 const Text(
@@ -58,7 +58,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ],
@@ -94,12 +94,12 @@ class _SearchScreenState extends State<SearchScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFD1D5DB)),
+        border: Border.all(color: const AppColors.border),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFF4A5568)),
+          Icon(icon, size: 20, color: const AppColors.slatePrimary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -107,7 +107,7 @@ class _SearchScreenState extends State<SearchScreen> {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF374151),
+                color: AppColors.textSecondary,
               ),
               overflow: TextOverflow.ellipsis,
             ),

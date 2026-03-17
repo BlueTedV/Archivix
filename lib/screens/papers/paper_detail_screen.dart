@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
+import '../../core/constants/app_colors.dart';
 import 'pdf_viewer_screen.dart';
 
 class PaperDetailScreen extends StatefulWidget {
@@ -129,7 +130,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${error.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
           ),
         );
       }
@@ -159,7 +160,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Storage permission is required to download files'),
-                backgroundColor: Color(0xFF991B1B),
+                backgroundColor: AppColors.errorDark,
                 duration: Duration(seconds: 3),
               ),
             );
@@ -234,7 +235,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                   ),
                 ],
               ),
-              backgroundColor: const Color(0xFF059669),
+              backgroundColor: const AppColors.success,
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
                 label: 'OK',
@@ -252,7 +253,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Download failed: ${error.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
           ),
         );
       }
@@ -283,14 +284,14 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(4),
-          side: const BorderSide(color: Color(0xFFD1D5DB)),
+          side: const BorderSide(color: AppColors.border),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text(
               'Cancel',
-              style: TextStyle(color: Color(0xFF6B7280)),
+              style: TextStyle(color: AppColors.textMuted),
             ),
           ),
           ElevatedButton(
@@ -299,7 +300,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
               openAppSettings(); // Opens app settings page
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4A5568),
+              backgroundColor: const AppColors.slatePrimary,
             ),
             child: const Text('Open Settings'),
           ),
@@ -360,7 +361,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                         const Icon(
                           Icons.error_outline,
                           size: 48,
-                          color: Color(0xFF991B1B),
+                          color: AppColors.errorDark,
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -368,7 +369,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF991B1B),
+                            color: AppColors.errorDark,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -377,7 +378,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF6B7280),
+                            color: AppColors.textMuted,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -398,7 +399,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -407,8 +408,8 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF3F4F6),
-                        border: Border.all(color: const Color(0xFFD1D5DB)),
+                        color: const AppColors.surfaceLight,
+                        border: Border.all(color: const AppColors.border),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Column(
@@ -416,13 +417,13 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.category, size: 16, color: Color(0xFF6B7280)),
+                              const Icon(Icons.category, size: 16, color: AppColors.textMuted),
                               const SizedBox(width: 6),
                               Text(
                                 (_paper!['categories'] as Map?)?['name'] ?? 'Uncategorized',
                                 style: const TextStyle(
                                   fontSize: 13,
-                                  color: Color(0xFF374151),
+                                  color: AppColors.textSecondary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -431,13 +432,13 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(Icons.calendar_today, size: 16, color: Color(0xFF6B7280)),
+                              const Icon(Icons.calendar_today, size: 16, color: AppColors.textMuted),
                               const SizedBox(width: 6),
                               Text(
                                 'Published: ${_formatDate(_paper!['published_at'])}',
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF6B7280),
+                                  color: AppColors.textMuted,
                                 ),
                               ),
                             ],
@@ -445,13 +446,13 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(Icons.visibility, size: 16, color: Color(0xFF6B7280)),
+                              const Icon(Icons.visibility, size: 16, color: AppColors.textMuted),
                               const SizedBox(width: 6),
                               Text(
                                 '${_paper!['views_count'] ?? 0} views',
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF6B7280),
+                                  color: AppColors.textMuted,
                                 ),
                               ),
                             ],
@@ -460,13 +461,13 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Icon(Icons.insert_drive_file, size: 16, color: Color(0xFF6B7280)),
+                                const Icon(Icons.insert_drive_file, size: 16, color: AppColors.textMuted),
                                 const SizedBox(width: 6),
                                 Text(
                                   'PDF Size: ${_formatFileSize(_paper!['pdf_file_size'])}',
                                   style: const TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF6B7280),
+                                    color: AppColors.textMuted,
                                   ),
                                 ),
                               ],
@@ -483,7 +484,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                         Container(
                           width: 3,
                           height: 20,
-                          color: const Color(0xFF4A5568),
+                          color: const AppColors.slatePrimary,
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -491,7 +492,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1F2937),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
@@ -503,7 +504,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                         'No author information available',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF9CA3AF),
+                          color: AppColors.textSubtle,
                         ),
                       )
                     else
@@ -513,7 +514,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            border: Border.all(color: const Color(0xFFD1D5DB)),
+                            border: Border.all(color: const AppColors.border),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Column(
@@ -524,7 +525,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1F2937),
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                               if (author['email'] != null) ...[
@@ -533,7 +534,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                                   author['email'],
                                   style: const TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF6B7280),
+                                    color: AppColors.textMuted,
                                   ),
                                 ),
                               ],
@@ -543,7 +544,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                                   author['affiliation'],
                                   style: const TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF6B7280),
+                                    color: AppColors.textMuted,
                                   ),
                                 ),
                               ],
@@ -560,7 +561,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                         Container(
                           width: 3,
                           height: 20,
-                          color: const Color(0xFF4A5568),
+                          color: const AppColors.slatePrimary,
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -568,7 +569,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1F2937),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
@@ -579,14 +580,14 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        border: Border.all(color: const Color(0xFFD1D5DB)),
+                        border: Border.all(color: const AppColors.border),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         _paper!['abstract'],
                         style: const TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF374151),
+                          color: AppColors.textSecondary,
                           height: 1.6,
                         ),
                       ),
@@ -621,7 +622,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF4A5568),
+                                  backgroundColor: const AppColors.slatePrimary,
                                 ),
                               ),
                             ),
@@ -639,7 +640,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                                         height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4A5568)),
+                                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.slatePrimary),
                                         ),
                                       )
                                     : const Icon(Icons.download),
@@ -651,8 +652,8 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFF4A5568),
-                                  side: const BorderSide(color: Color(0xFF4A5568), width: 2),
+                                  foregroundColor: const AppColors.slatePrimary,
+                                  side: const BorderSide(color: AppColors.slatePrimary, width: 2),
                                 ),
                               ),
                             ),
@@ -669,7 +670,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                         Container(
                           width: 3,
                           height: 20,
-                          color: const Color(0xFF4A5568),
+                          color: const AppColors.slatePrimary,
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -677,7 +678,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1F2937),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
@@ -687,8 +688,8 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
-                        border: Border.all(color: const Color(0xFFD1D5DB)),
+                        color: const AppColors.surfaceFaint,
+                        border: Border.all(color: const AppColors.border),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Column(
@@ -696,7 +697,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           const Icon(
                             Icons.comment_outlined,
                             size: 40,
-                            color: Color(0xFF9CA3AF),
+                            color: AppColors.textSubtle,
                           ),
                           const SizedBox(height: 12),
                           const Text(
@@ -704,7 +705,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF6B7280),
+                              color: AppColors.textMuted,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -712,7 +713,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                             'Coming soon! You will be able to discuss this paper with other researchers.',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Color(0xFF9CA3AF),
+                              color: AppColors.textSubtle,
                             ),
                             textAlign: TextAlign.center,
                           ),

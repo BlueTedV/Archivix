@@ -68,4 +68,14 @@ abstract class AppColors {
   // ─── Status: Success ──────────────────────────────────────────────────────
   /// Success snackbar background — download complete, etc.
   static const Color success = Color(0xFF059669);
+
+  /// Success dark text color
+  static const Color successDark = Color(0xFF065F46);
+
+  /// Success light surface background
+  static const Color successLight = Color(0xFFD1FAE5);
+
+  // ─── Error variants ───────────────────────────────────────────────────────
+  /// Error color for borders/icons
+  static const Color error = Color(0xFFEF4444);
 } 
