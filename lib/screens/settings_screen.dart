@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'login_screen.dart';
+import 'auth/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -50,6 +50,210 @@ class _SettingsScreenState extends State<SettingsScreen> {
         });
       }
     }
+  }
+
+  void _showChangePasswordDialog() {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text(
+            'Change Password',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Current Password',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF374151),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: currentPasswordController,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter current password',
+                    hintStyle: TextStyle(fontSize: 13),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Required';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'New Password',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF374151),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: newPasswordController,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter new password',
+                    hintStyle: TextStyle(fontSize: 13),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Required';
+                    }
+                    if (value.length < 6) {
+                      return 'Must be at least 6 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Confirm New Password',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF374151),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: confirmPasswordController,
+                  decoration: const InputDecoration(
+                    hintText: 'Confirm new password',
+                    hintStyle: TextStyle(fontSize: 13),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Required';
+                    }
+                    if (value != newPasswordController.text) {
+                      return 'Passwords don\'t match';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+            side: const BorderSide(color: Color(0xFFD1D5DB)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF6B7280)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+
+                      setState(() {
+                        isLoading = true;
+                      });
+
+                      try {
+                        // First, verify current password by attempting to sign in
+                        final email = supabase.auth.currentUser?.email;
+                        if (email == null) throw Exception('User not logged in');
+
+                        await supabase.auth.signInWithPassword(
+                          email: email,
+                          password: currentPasswordController.text,
+                        );
+
+                        // If sign in successful, update password
+                        await supabase.auth.updateUser(
+                          UserAttributes(
+                            password: newPasswordController.text,
+                          ),
+                        );
+
+                        if (context.mounted) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Password changed successfully!'),
+                              backgroundColor: Color(0xFF059669),
+                            ),
+                          );
+                        }
+                      } on AuthException catch (error) {
+                        if (context.mounted) {
+                          setState(() {
+                            isLoading = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(error.message),
+                              backgroundColor: const Color(0xFF991B1B),
+                            ),
+                          );
+                        }
+                      } catch (error) {
+                        if (context.mounted) {
+                          setState(() {
+                            isLoading = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: ${error.toString()}'),
+                              backgroundColor: const Color(0xFF991B1B),
+                            ),
+                          );
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4A5568),
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Change Password'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _signOut() async {
@@ -216,10 +420,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (!isEmailConfirmed) ...[
                   const SizedBox(height: 8),
                   const Text(
-                    'Please check your email and click the verification link.',
+                    'Verify your email to unlock all app features:',
                     style: TextStyle(
                       fontSize: 12,
+                      fontWeight: FontWeight.w600,
                       color: Color(0xFF92400E),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Padding(
+                    padding: EdgeInsets.only(left: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('• Submit research papers', style: TextStyle(fontSize: 11, color: Color(0xFF92400E))),
+                        Text('• Download papers', style: TextStyle(fontSize: 11, color: Color(0xFF92400E))),
+                        Text('• Comment & discuss', style: TextStyle(fontSize: 11, color: Color(0xFF92400E))),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -302,14 +519,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.lock_outline,
             title: 'Change Password',
             subtitle: 'Update your account password',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Password change not yet implemented'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            onTap: _showChangePasswordDialog,
           ),
           const SizedBox(height: 1),
           

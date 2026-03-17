@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/login_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'screens/home_screen.dart';
 
 Future<void> main() async {

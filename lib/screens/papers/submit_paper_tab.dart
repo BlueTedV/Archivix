@@ -6,14 +6,14 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:path/path.dart' as path;
 
-class SubmitScreen extends StatefulWidget {
-  const SubmitScreen({Key? key}) : super(key: key);
+class SubmitPaperTab extends StatefulWidget {
+  const SubmitPaperTab({Key? key}) : super(key: key);
 
   @override
-  State<SubmitScreen> createState() => _SubmitScreenState();
+  State<SubmitPaperTab> createState() => _SubmitPaperTabState();
 }
 
-class _SubmitScreenState extends State<SubmitScreen> {
+class _SubmitPaperTabState extends State<SubmitPaperTab> {
   final _titleController = TextEditingController();
   final _abstractController = TextEditingController();
   final _authorNameController = TextEditingController();
@@ -292,28 +292,19 @@ class _SubmitScreenState extends State<SubmitScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoadingCategories) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Submit Paper'),
-        ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+      return const Center(
+        child: CircularProgressIndicator(),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Submit Paper'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: [
+        Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
                 const Text(
                   'Paper Title',
                   style: TextStyle(
@@ -608,7 +599,6 @@ class _SubmitScreenState extends State<SubmitScreen> {
             ),
           ),
         ],
-      ),
     );
   }
 }

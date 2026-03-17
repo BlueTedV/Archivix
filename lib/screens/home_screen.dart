@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'feed_screen.dart';
+import 'feed/feed_screen.dart';
 import 'search_screen.dart';
-import 'submit_screen.dart';
+import 'submit_screen_tabs.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
