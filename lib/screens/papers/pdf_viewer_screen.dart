@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import '../../core/constants/app_colors.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   final String pdfUrl;
@@ -57,7 +58,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading PDF: ${e.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
           ),
         );
       }

@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:path/path.dart' as path;
+import '../../core/constants/app_colors.dart';
 
 class SubmitPaperTab extends StatefulWidget {
   const SubmitPaperTab({Key? key}) : super(key: key);
@@ -64,7 +65,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading categories: ${error.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
           ),
         );
       }
@@ -144,7 +145,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error picking file: ${e.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
           ),
         );
       }
@@ -266,7 +267,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${error.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
           ),
         );
       }
@@ -343,7 +344,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: const AppColors.textSubtle),
+                    border: Border.all(color: AppColors.textSubtle),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: DropdownButtonHideUnderline(
@@ -401,7 +402,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                     Container(
                       width: 3,
                       height: 20,
-                      color: const AppColors.slatePrimary,
+                      color: AppColors.slatePrimary,
                     ),
                     const SizedBox(width: 8),
                     const Text(
@@ -483,7 +484,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                     Container(
                       width: 3,
                       height: 20,
-                      color: const AppColors.slatePrimary,
+                      color: AppColors.slatePrimary,
                     ),
                     const SizedBox(width: 8),
                     const Text(
@@ -502,7 +503,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: const AppColors.border),
+                    border: Border.all(color: AppColors.border),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Column(
@@ -518,8 +519,8 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: _fileName != null 
-                                    ? const AppColors.textSecondary
-                                    : const AppColors.textSubtle,
+                                    ? AppColors.textSecondary
+                                    : AppColors.textSubtle,
                                 fontWeight: _fileName != null 
                                     ? FontWeight.w600
                                     : FontWeight.normal,

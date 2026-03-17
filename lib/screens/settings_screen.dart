@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth/login_screen.dart';
+import '../../core/constants/app_colors.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -38,7 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${error.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -218,7 +219,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(error.message),
-                              backgroundColor: const AppColors.errorDark,
+                              backgroundColor: AppColors.errorDark,
                             ),
                           );
                         }
@@ -230,14 +231,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Error: ${error.toString()}'),
-                              backgroundColor: const AppColors.errorDark,
+                              backgroundColor: AppColors.errorDark,
                             ),
                           );
                         }
                       }
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const AppColors.slatePrimary,
+                backgroundColor: AppColors.slatePrimary,
               ),
               child: isLoading
                   ? const SizedBox(
@@ -314,7 +315,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border.all(color: const AppColors.border),
+              border: Border.all(color: AppColors.border),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Column(
@@ -323,7 +324,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: const AppColors.slatePrimary,
+                    color: AppColors.slatePrimary,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Icon(
@@ -360,7 +361,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 width: 3,
                 height: 20,
-                color: const AppColors.slatePrimary,
+                color: AppColors.slatePrimary,
               ),
               const SizedBox(width: 8),
               const Text(
@@ -379,12 +380,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: isEmailConfirmed 
-                  ? const AppColors.successLight 
-                  : const AppColors.amberSurface,
+                  ? AppColors.successLight 
+                  : AppColors.amberSurface,
               border: Border.all(
                 color: isEmailConfirmed 
-                    ? const Color(0xFF6EE7B7) 
-                    : const AppColors.amberBorder,
+                    ? Color(0xFF6EE7B7) 
+                    : AppColors.amberBorder,
               ),
               borderRadius: BorderRadius.circular(4),
             ),
@@ -397,8 +398,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       isEmailConfirmed ? Icons.check_circle : Icons.warning,
                       size: 20,
                       color: isEmailConfirmed 
-                          ? const Color(0xFF047857) 
-                          : const AppColors.amberDark,
+                          ? Color(0xFF047857) 
+                          : AppColors.amberDark,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -410,8 +411,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: isEmailConfirmed 
-                              ? const Color(0xFF047857) 
-                              : const AppColors.amberDark,
+                              ? Color(0xFF047857) 
+                              : AppColors.amberDark,
                         ),
                       ),
                     ),
@@ -459,7 +460,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onPressed: _sendVerificationEmail,
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(color: AppColors.amberDark),
-                              foregroundColor: const AppColors.amberDark,
+                              foregroundColor: AppColors.amberDark,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(4),
                               ),
@@ -485,7 +486,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 width: 3,
                 height: 20,
-                color: const AppColors.slatePrimary,
+                color: AppColors.slatePrimary,
               ),
               const SizedBox(width: 8),
               const Text(
@@ -560,7 +561,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: _signOut,
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.errorDark),
-                foregroundColor: const AppColors.errorDark,
+                foregroundColor: AppColors.errorDark,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -606,7 +607,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       child: ListTile(
-        leading: Icon(icon, color: const AppColors.slatePrimary),
+        leading: Icon(icon, color: AppColors.slatePrimary),
         title: Text(
           title,
           style: const TextStyle(

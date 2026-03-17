@@ -5,8 +5,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
-import '../../core/constants/app_colors.dart';
 import 'pdf_viewer_screen.dart';
+import '../../core/constants/app_colors.dart';
 
 class PaperDetailScreen extends StatefulWidget {
   final String paperId;
@@ -130,7 +130,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${error.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
           ),
         );
       }
@@ -235,7 +235,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                   ),
                 ],
               ),
-              backgroundColor: const AppColors.success,
+              backgroundColor: AppColors.success,
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
                 label: 'OK',
@@ -253,7 +253,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Download failed: ${error.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
           ),
         );
       }
@@ -300,7 +300,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
               openAppSettings(); // Opens app settings page
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const AppColors.slatePrimary,
+              backgroundColor: AppColors.slatePrimary,
             ),
             child: const Text('Open Settings'),
           ),
@@ -408,8 +408,8 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const AppColors.surfaceLight,
-                        border: Border.all(color: const AppColors.border),
+                        color: AppColors.surfaceLight,
+                        border: Border.all(color: AppColors.border),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Column(
@@ -484,7 +484,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                         Container(
                           width: 3,
                           height: 20,
-                          color: const AppColors.slatePrimary,
+                          color: AppColors.slatePrimary,
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -514,7 +514,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            border: Border.all(color: const AppColors.border),
+                            border: Border.all(color: AppColors.border),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Column(
@@ -561,7 +561,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                         Container(
                           width: 3,
                           height: 20,
-                          color: const AppColors.slatePrimary,
+                          color: AppColors.slatePrimary,
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -580,7 +580,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        border: Border.all(color: const AppColors.border),
+                        border: Border.all(color: AppColors.border),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -622,7 +622,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const AppColors.slatePrimary,
+                                  backgroundColor: AppColors.slatePrimary,
                                 ),
                               ),
                             ),
@@ -652,7 +652,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: const AppColors.slatePrimary,
+                                  foregroundColor: AppColors.slatePrimary,
                                   side: const BorderSide(color: AppColors.slatePrimary, width: 2),
                                 ),
                               ),
@@ -670,7 +670,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                         Container(
                           width: 3,
                           height: 20,
-                          color: const AppColors.slatePrimary,
+                          color: AppColors.slatePrimary,
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -688,8 +688,8 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: const AppColors.surfaceFaint,
-                        border: Border.all(color: const AppColors.border),
+                        color: AppColors.surfaceFaint,
+                        border: Border.all(color: AppColors.border),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Column(

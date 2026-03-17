@@ -8,6 +8,7 @@ import 'package:archivix/core/constants/app_colors.dart';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../papers/pdf_viewer_screen.dart';
+import '../../core/constants/app_colors.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // pubspec.yaml dependencies (add if not already present):
@@ -273,7 +274,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Download failed: ${error.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
           ),
         );
       }
@@ -313,7 +314,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               openAppSettings();
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: const AppColors.slatePrimary),
+                backgroundColor: AppColors.slatePrimary),
             child: const Text('Open Settings'),
           ),
         ],
@@ -355,7 +356,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Widget _buildSectionHeader(String title) {
     return Row(
       children: [
-        Container(width: 3, height: 20, color: const AppColors.amberDark),
+        Container(width: 3, height: 20, color: AppColors.amberDark),
         const SizedBox(width: 8),
         Text(
           title,
@@ -395,7 +396,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: const AppColors.border),
+        border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(4),
       ),
       clipBehavior: Clip.antiAlias,
@@ -418,7 +419,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                   progress.expectedTotalBytes!
                               : null,
                           strokeWidth: 2,
-                          color: const AppColors.slatePrimary,
+                          color: AppColors.slatePrimary,
                         ),
                       );
                     },
@@ -518,7 +519,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         height: 200,
         decoration: BoxDecoration(
-          color: const AppColors.textPrimary,
+          color: AppColors.textPrimary,
           borderRadius: BorderRadius.circular(4),
         ),
         child: const Center(
@@ -538,7 +539,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.black,
-        border: Border.all(color: const AppColors.border),
+        border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(4),
       ),
       clipBehavior: Clip.antiAlias,
@@ -595,7 +596,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       () => isPlaying ? controller.pause() : controller.play()),
                   child: Icon(
                     isPlaying ? Icons.pause : Icons.play_arrow,
-                    color: const AppColors.slatePrimary,
+                    color: AppColors.slatePrimary,
                     size: 20,
                   ),
                 ),
@@ -660,13 +661,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const AppColors.amberSurface,
-              border: Border.all(color: const AppColors.amberBorder),
+              color: AppColors.amberSurface,
+              border: Border.all(color: AppColors.amberBorder),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Icon(
               isPdf ? Icons.picture_as_pdf : Icons.insert_drive_file,
-              color: const AppColors.amberDark,
+              color: AppColors.amberDark,
               size: 26,
             ),
           ),
@@ -721,7 +722,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             label: const Text('View PDF',
                                 style: TextStyle(fontSize: 12)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const AppColors.slatePrimary,
+                              backgroundColor: AppColors.slatePrimary,
                               padding: EdgeInsets.zero,
                             ),
                           ),
@@ -753,7 +754,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             style: const TextStyle(fontSize: 12),
                           ),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const AppColors.slatePrimary,
+                            foregroundColor: AppColors.slatePrimary,
                             side: const BorderSide(color: AppColors.slatePrimary),
                             padding: EdgeInsets.zero,
                           ),
@@ -783,7 +784,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const AppColors.border),
+        border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -791,8 +792,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const AppColors.surfaceLight,
-              border: Border.all(color: const AppColors.border),
+              color: AppColors.surfaceLight,
+              border: Border.all(color: AppColors.border),
               borderRadius: BorderRadius.circular(4),
             ),
             child: const Icon(Icons.insert_drive_file,
@@ -851,7 +852,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 style: const TextStyle(fontSize: 12),
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const AppColors.slatePrimary,
+                foregroundColor: AppColors.slatePrimary,
                 side: const BorderSide(color: AppColors.slatePrimary),
               ),
             ),
@@ -867,7 +868,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return Container(
       height: height,
       width: double.infinity,
-      color: const AppColors.surfaceLight,
+      color: AppColors.surfaceLight,
       child: Center(child: child),
     );
   }
@@ -920,7 +921,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ElevatedButton(
               onPressed: _loadPostDetails,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: const AppColors.slatePrimary),
+                  backgroundColor: AppColors.slatePrimary),
               child: const Text('Retry'),
             ),
           ],
@@ -940,8 +941,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const AppColors.amberSurface,
-                border: Border.all(color: const AppColors.amberBorder),
+                color: AppColors.amberSurface,
+                border: Border.all(color: AppColors.amberBorder),
                 borderRadius: BorderRadius.circular(3),
               ),
               child: const Row(
@@ -981,8 +982,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const AppColors.amberSurface,
-            border: Border.all(color: const AppColors.amberBorder),
+            color: AppColors.amberSurface,
+            border: Border.all(color: AppColors.amberBorder),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Column(
@@ -1036,7 +1037,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: const AppColors.border),
+            border: Border.all(color: AppColors.border),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
@@ -1065,8 +1066,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const AppColors.surfaceFaint,
-            border: Border.all(color: const AppColors.border),
+            color: AppColors.surfaceFaint,
+            border: Border.all(color: AppColors.border),
             borderRadius: BorderRadius.circular(4),
           ),
           child: const Column(

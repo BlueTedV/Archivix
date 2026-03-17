@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/app_colors.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -50,7 +51,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 Container(
                   width: 3,
                   height: 20,
-                  color: const AppColors.slatePrimary,
+                  color: AppColors.slatePrimary,
                 ),
                 const SizedBox(width: 8),
                 const Text(
@@ -94,12 +95,12 @@ class _SearchScreenState extends State<SearchScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const AppColors.border),
+        border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const AppColors.slatePrimary),
+          Icon(icon, size: 20, color: AppColors.slatePrimary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

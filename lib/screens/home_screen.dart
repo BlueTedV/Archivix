@@ -4,6 +4,7 @@ import 'feed/feed_screen.dart';
 import 'search_screen.dart';
 import 'submit_screen_tabs.dart';
 import 'settings_screen.dart';
+import '../../core/constants/app_colors.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -35,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: const AppColors.border, width: 1),
+            top: BorderSide(color: AppColors.border, width: 1),
           ),
         ),
         child: BottomNavigationBar(
@@ -47,8 +48,8 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
-          selectedItemColor: const AppColors.slatePrimary,
-          unselectedItemColor: const AppColors.textSubtle,
+          selectedItemColor: AppColors.slatePrimary,
+          unselectedItemColor: AppColors.textSubtle,
           selectedFontSize: 12,
           unselectedFontSize: 12,
           elevation: 8,

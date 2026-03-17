@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:path/path.dart' as path;
+import '../../core/constants/app_colors.dart';
 
 class SubmitPostTab extends StatefulWidget {
   const SubmitPostTab({Key? key}) : super(key: key);
@@ -69,7 +70,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading categories: ${error.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
           ),
         );
       }
@@ -113,7 +114,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error picking files: ${e.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
           ),
         );
       }
@@ -236,7 +237,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${error.toString()}'),
-            backgroundColor: const AppColors.errorDark,
+            backgroundColor: AppColors.errorDark,
           ),
         );
       }
@@ -270,7 +271,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFDEEBFF),
-                  border: Border.all(color: const AppColors.slatePrimary),
+                  border: Border.all(color: AppColors.slatePrimary),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Row(
@@ -282,7 +283,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                         'Ask research-related questions and get answers from the community. You can attach images, videos, or documents.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: const AppColors.slatePrimary.withOpacity(0.9),
+                          color: AppColors.slatePrimary.withOpacity(0.9),
                         ),
                       ),
                     ),
@@ -395,7 +396,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border.all(color: const AppColors.border),
+                  border: Border.all(color: AppColors.border),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: DropdownButton<String>(
@@ -426,7 +427,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                   Container(
                     width: 3,
                     height: 18,
-                    color: const AppColors.slatePrimary,
+                    color: AppColors.slatePrimary,
                   ),
                   const SizedBox(width: 8),
                   const Text(
@@ -444,7 +445,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 'Add images, videos, or documents to support your question',
                 style: TextStyle(
                   fontSize: 12,
-                  color: const AppColors.textMuted,
+                  color: AppColors.textMuted,
                 ),
               ),
               const SizedBox(height: 12),
@@ -455,7 +456,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 icon: const Icon(Icons.attach_file, size: 18),
                 label: const Text('Add Files'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const AppColors.slatePrimary,
+                  foregroundColor: AppColors.slatePrimary,
                   side: const BorderSide(color: AppColors.slatePrimary),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
@@ -476,8 +477,8 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const AppColors.surfaceLight,
-                      border: Border.all(color: const AppColors.border),
+                      color: AppColors.surfaceLight,
+                      border: Border.all(color: AppColors.border),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Row(
@@ -490,7 +491,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                                   ? Icons.videocam
                                   : Icons.insert_drive_file,
                           size: 24,
-                          color: const AppColors.slatePrimary,
+                          color: AppColors.slatePrimary,
                         ),
                         const SizedBox(width: 12),
                         // File info
@@ -525,7 +526,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                           onPressed: () => _removeAttachment(index),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          color: const AppColors.errorDark,
+                          color: AppColors.errorDark,
                         ),
                       ],
                     ),
@@ -562,7 +563,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 child: ElevatedButton(
                   onPressed: _isUploading ? null : _submitPost,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const AppColors.slatePrimary,
+                    backgroundColor: AppColors.slatePrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(4),
                     ),
