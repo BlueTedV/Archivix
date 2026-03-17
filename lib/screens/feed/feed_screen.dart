@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/constants/app_colors.dart';
 import '../papers/paper_detail_screen.dart';
 import '../posts/post_detail_screen.dart';
 
@@ -174,8 +175,8 @@ class _FeedScreenState extends State<FeedScreen> {
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    border: Border.all(color: const Color(0xFFFCD34D)),
+                    color: AppColors.amberSurface,
+                    border: Border.all(color: AppColors.amberBorder),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Row(
@@ -183,7 +184,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       const Icon(
                         Icons.info_outline,
                         size: 20,
-                        color: Color(0xFF92400E),
+                        color: AppColors.amberDark,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -195,7 +196,7 @@ class _FeedScreenState extends State<FeedScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF92400E),
+                                color: AppColors.amberDark,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -203,7 +204,7 @@ class _FeedScreenState extends State<FeedScreen> {
                               'Check your email or tap here to resend verification.',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: const Color(0xFF92400E).withOpacity(0.9),
+                                color: AppColors.amberDark.withOpacity(0.9),
                               ),
                             ),
                           ],
@@ -213,7 +214,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       const Icon(
                         Icons.arrow_forward_ios,
                         size: 14,
-                        color: Color(0xFF92400E),
+                        color: AppColors.amberDark,
                       ),
                     ],
                   ),
@@ -224,9 +225,9 @@ class _FeedScreenState extends State<FeedScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF4A5568),
+                color: AppColors.slateBanner,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFF374151)),
+                border: Border.all(color: AppColors.textSecondary),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,7 +259,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 Container(
                   width: 3,
                   height: 20,
-                  color: const Color(0xFF4A5568),
+                  color: AppColors.slatePrimary,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -271,7 +272,7 @@ class _FeedScreenState extends State<FeedScreen> {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
@@ -280,17 +281,17 @@ class _FeedScreenState extends State<FeedScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: const Color(0xFF4A5568)),
+                    border: Border.all(color: AppColors.slatePrimary),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: DropdownButton<String>(
                     value: _filter,
                     underline: const SizedBox(),
                     isDense: true,
-                    icon: const Icon(Icons.filter_list, size: 16, color: Color(0xFF4A5568)),
+                    icon: const Icon(Icons.filter_list, size: 16, color: AppColors.slatePrimary),
                     style: const TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF374151),
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w600,
                     ),
                     items: const [
@@ -324,7 +325,7 @@ class _FeedScreenState extends State<FeedScreen> {
               '${_combinedItems.length} items',
               style: const TextStyle(
                 fontSize: 12,
-                color: Color(0xFF6B7280),
+                color: AppColors.textMuted,
               ),
             ),
             const SizedBox(height: 12),
@@ -341,19 +342,19 @@ class _FeedScreenState extends State<FeedScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEE2E2),
-                  border: Border.all(color: const Color(0xFFEF4444)),
+                  color: AppColors.errorSurface,
+                  border: Border.all(color: AppColors.errorBorder),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.error_outline, color: Color(0xFF991B1B)),
+                    const Icon(Icons.error_outline, color: AppColors.errorDark),
                     const SizedBox(height: 8),
                     Text(
                       'Error loading papers',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF991B1B),
+                        color: AppColors.errorDark,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -361,7 +362,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       _error!,
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF991B1B),
+                        color: AppColors.errorDark,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -378,7 +379,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border.all(color: const Color(0xFFD1D5DB)),
+                  border: Border.all(color: AppColors.border),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Column(
@@ -386,7 +387,7 @@ class _FeedScreenState extends State<FeedScreen> {
                     const Icon(
                       Icons.article_outlined,
                       size: 48,
-                      color: Color(0xFF9CA3AF),
+                      color: AppColors.textSubtle,
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -398,7 +399,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF6B7280),
+                        color: AppColors.textMuted,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -410,7 +411,7 @@ class _FeedScreenState extends State<FeedScreen> {
                               : 'Be the first to contribute!',
                       style: const TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF9CA3AF),
+                        color: AppColors.textSubtle,
                       ),
                     ),
                   ],
@@ -480,7 +481,7 @@ class _FeedScreenState extends State<FeedScreen> {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: const Color(0xFFD1D5DB)),
+          border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Column(
@@ -491,7 +492,7 @@ class _FeedScreenState extends State<FeedScreen> {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1F2937),
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -499,7 +500,7 @@ class _FeedScreenState extends State<FeedScreen> {
               authors,
               style: const TextStyle(
                 fontSize: 12,
-                color: Color(0xFF6B7280),
+                color: AppColors.textMuted,
               ),
             ),
             const SizedBox(height: 8),
@@ -509,7 +510,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   : abstract,
               style: const TextStyle(
                 fontSize: 12,
-                color: Color(0xFF6B7280),
+                color: AppColors.textMuted,
               ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -520,27 +521,27 @@ class _FeedScreenState extends State<FeedScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    border: Border.all(color: const Color(0xFFD1D5DB)),
+                    color: AppColors.surfaceLight,
+                    border: Border.all(color: AppColors.border),
                     borderRadius: BorderRadius.circular(3),
                   ),
                   child: Text(
                     category,
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF4A5568),
+                      color: AppColors.slatePrimary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.visibility, size: 12, color: Color(0xFF9CA3AF)),
+                const Icon(Icons.visibility, size: 12, color: AppColors.textSubtle),
                 const SizedBox(width: 4),
                 Text(
                   '$views',
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF9CA3AF),
+                    color: AppColors.textSubtle,
                   ),
                 ),
                 const Spacer(),
@@ -548,7 +549,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   date,
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF9CA3AF),
+                    color: AppColors.textSubtle,
                   ),
                 ),
               ],
@@ -578,8 +579,8 @@ class _FeedScreenState extends State<FeedScreen> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF9E6), // Light yellow tint to differentiate
-          border: Border.all(color: const Color(0xFFFCD34D)),
+          color: AppColors.amberCardBg, // Light yellow tint to differentiate
+          border: Border.all(color: AppColors.amberBorder),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Column(
@@ -590,7 +591,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 const Icon(
                   Icons.question_answer,
                   size: 16,
-                  color: Color(0xFF92400E),
+                  color: AppColors.amberDark,
                 ),
                 const SizedBox(width: 6),
                 const Text(
@@ -598,7 +599,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF92400E),
+                    color: AppColors.amberDark,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -610,7 +611,7 @@ class _FeedScreenState extends State<FeedScreen> {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1F2937),
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -620,7 +621,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   : content,
               style: const TextStyle(
                 fontSize: 12,
-                color: Color(0xFF6B7280),
+                color: AppColors.textMuted,
               ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -631,27 +632,27 @@ class _FeedScreenState extends State<FeedScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    border: Border.all(color: const Color(0xFFFCD34D)),
+                    color: AppColors.amberSurface,
+                    border: Border.all(color: AppColors.amberBorder),
                     borderRadius: BorderRadius.circular(3),
                   ),
                   child: Text(
                     category,
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF92400E),
+                      color: AppColors.amberDark,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.visibility, size: 12, color: Color(0xFF9CA3AF)),
+                const Icon(Icons.visibility, size: 12, color: AppColors.textSubtle),
                 const SizedBox(width: 4),
                 Text(
                   '$views',
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF9CA3AF),
+                    color: AppColors.textSubtle,
                   ),
                 ),
                 const Spacer(),
@@ -659,7 +660,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   date,
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF9CA3AF),
+                    color: AppColors.textSubtle,
                   ),
                 ),
               ],

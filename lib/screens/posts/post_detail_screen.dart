@@ -198,7 +198,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Storage permission is required to download files'),
-                backgroundColor: Color(0xFF991B1B),
+                backgroundColor: AppColors.errorDark,
                 duration: Duration(seconds: 3),
               ),
             );
@@ -273,7 +273,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Download failed: ${error.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
           ),
         );
       }
@@ -299,13 +299,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(4),
-          side: const BorderSide(color: Color(0xFFD1D5DB)),
+          side: const BorderSide(color: AppColors.border),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF6B7280))),
+                style: TextStyle(color: AppColors.textMuted)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -313,7 +313,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               openAppSettings();
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4A5568)),
+                backgroundColor: const AppColors.slatePrimary),
             child: const Text('Open Settings'),
           ),
         ],
@@ -355,14 +355,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Widget _buildSectionHeader(String title) {
     return Row(
       children: [
-        Container(width: 3, height: 20, color: const Color(0xFF92400E)),
+        Container(width: 3, height: 20, color: const AppColors.amberDark),
         const SizedBox(width: 8),
         Text(
           title,
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1F2937),
+            color: AppColors.textPrimary,
           ),
         ),
       ],
@@ -395,7 +395,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFD1D5DB)),
+        border: Border.all(color: const AppColors.border),
         borderRadius: BorderRadius.circular(4),
       ),
       clipBehavior: Clip.antiAlias,
@@ -418,7 +418,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                   progress.expectedTotalBytes!
                               : null,
                           strokeWidth: 2,
-                          color: const Color(0xFF4A5568),
+                          color: const AppColors.slatePrimary,
                         ),
                       );
                     },
@@ -428,11 +428,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.broken_image,
-                              size: 40, color: Color(0xFF9CA3AF)),
+                              size: 40, color: AppColors.textSubtle),
                           SizedBox(height: 8),
                           Text('Could not load image',
                               style: TextStyle(
-                                  fontSize: 12, color: Color(0xFF9CA3AF))),
+                                  fontSize: 12, color: AppColors.textSubtle)),
                         ],
                       ),
                     ),
@@ -518,7 +518,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         height: 200,
         decoration: BoxDecoration(
-          color: const Color(0xFF1F2937),
+          color: const AppColors.textPrimary,
           borderRadius: BorderRadius.circular(4),
         ),
         child: const Center(
@@ -538,7 +538,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.black,
-        border: Border.all(color: const Color(0xFFD1D5DB)),
+        border: Border.all(color: const AppColors.border),
         borderRadius: BorderRadius.circular(4),
       ),
       clipBehavior: Clip.antiAlias,
@@ -577,9 +577,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             controller,
             allowScrubbing: true,
             colors: const VideoProgressColors(
-              playedColor: Color(0xFF92400E),
-              bufferedColor: Color(0xFF6B7280),
-              backgroundColor: Color(0xFF374151),
+              playedColor: AppColors.amberDark,
+              bufferedColor: AppColors.textMuted,
+              backgroundColor: AppColors.textSecondary,
             ),
             padding: EdgeInsets.zero,
           ),
@@ -595,7 +595,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       () => isPlaying ? controller.pause() : controller.play()),
                   child: Icon(
                     isPlaying ? Icons.pause : Icons.play_arrow,
-                    color: const Color(0xFF4A5568),
+                    color: const AppColors.slatePrimary,
                     size: 20,
                   ),
                 ),
@@ -605,18 +605,18 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   builder: (_, value, __) => Text(
                     '${_formatDuration(value.position)} / ${_formatDuration(value.duration)}',
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF9CA3AF)),
+                        fontSize: 11, color: AppColors.textSubtle),
                   ),
                 ),
                 const SizedBox(width: 8),
                 const Icon(Icons.videocam,
-                    size: 12, color: Color(0xFF9CA3AF)),
+                    size: 12, color: AppColors.textSubtle),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     fileName,
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF6B7280)),
+                        fontSize: 11, color: AppColors.textMuted),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -624,7 +624,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   Text(
                     _formatFileSize(fileSize),
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF9CA3AF)),
+                        fontSize: 11, color: AppColors.textSubtle),
                   ),
               ],
             ),
@@ -660,13 +660,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
-              border: Border.all(color: const Color(0xFFFCD34D)),
+              color: const AppColors.amberSurface,
+              border: Border.all(color: const AppColors.amberBorder),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Icon(
               isPdf ? Icons.picture_as_pdf : Icons.insert_drive_file,
-              color: const Color(0xFF92400E),
+              color: const AppColors.amberDark,
               size: 26,
             ),
           ),
@@ -681,7 +681,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
+                    color: AppColors.textPrimary,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -691,7 +691,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   Text(
                     _formatFileSize(fileSize),
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF9CA3AF)),
+                        fontSize: 11, color: AppColors.textSubtle),
                   ),
                 ],
                 const SizedBox(height: 4),
@@ -701,7 +701,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       : 'Tap "Download" to save this file',
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF92400E),
+                    color: AppColors.amberDark,
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -721,7 +721,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             label: const Text('View PDF',
                                 style: TextStyle(fontSize: 12)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4A5568),
+                              backgroundColor: const AppColors.slatePrimary,
                               padding: EdgeInsets.zero,
                             ),
                           ),
@@ -744,7 +744,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                        Color(0xFF4A5568)),
+                                        AppColors.slatePrimary),
                                   ),
                                 )
                               : const Icon(Icons.download, size: 14),
@@ -753,8 +753,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             style: const TextStyle(fontSize: 12),
                           ),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF4A5568),
-                            side: const BorderSide(color: Color(0xFF4A5568)),
+                            foregroundColor: const AppColors.slatePrimary,
+                            side: const BorderSide(color: AppColors.slatePrimary),
                             padding: EdgeInsets.zero,
                           ),
                         ),
@@ -783,7 +783,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFD1D5DB)),
+        border: Border.all(color: const AppColors.border),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -791,12 +791,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
-              border: Border.all(color: const Color(0xFFD1D5DB)),
+              color: const AppColors.surfaceLight,
+              border: Border.all(color: const AppColors.border),
               borderRadius: BorderRadius.circular(4),
             ),
             child: const Icon(Icons.insert_drive_file,
-                color: Color(0xFF6B7280), size: 24),
+                color: AppColors.textMuted, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -808,7 +808,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
+                    color: AppColors.textPrimary,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -822,7 +822,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       if (fileSize != null) _formatFileSize(fileSize),
                     ].join(' · '),
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF9CA3AF)),
+                        fontSize: 11, color: AppColors.textSubtle),
                   ),
                 ],
               ],
@@ -842,7 +842,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor:
-                            AlwaysStoppedAnimation<Color>(Color(0xFF4A5568)),
+                            AlwaysStoppedAnimation<Color>(AppColors.slatePrimary),
                       ),
                     )
                   : const Icon(Icons.download, size: 14),
@@ -851,8 +851,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 style: const TextStyle(fontSize: 12),
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF4A5568),
-                side: const BorderSide(color: Color(0xFF4A5568)),
+                foregroundColor: const AppColors.slatePrimary,
+                side: const BorderSide(color: AppColors.slatePrimary),
               ),
             ),
           ),
@@ -867,7 +867,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return Container(
       height: height,
       width: double.infinity,
-      color: const Color(0xFFF3F4F6),
+      color: const AppColors.surfaceLight,
       child: Center(child: child),
     );
   }
@@ -899,14 +899,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.error_outline,
-                size: 48, color: Color(0xFF991B1B)),
+                size: 48, color: AppColors.errorDark),
             const SizedBox(height: 16),
             const Text(
               'Error loading post',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF991B1B),
+                color: AppColors.errorDark,
               ),
             ),
             const SizedBox(height: 8),
@@ -914,13 +914,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               _error!,
               textAlign: TextAlign.center,
               style:
-                  const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                  const TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadPostDetails,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4A5568)),
+                  backgroundColor: const AppColors.slatePrimary),
               child: const Text('Retry'),
             ),
           ],
@@ -940,22 +940,22 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                border: Border.all(color: const Color(0xFFFCD34D)),
+                color: const AppColors.amberSurface,
+                border: Border.all(color: const AppColors.amberBorder),
                 borderRadius: BorderRadius.circular(3),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.question_answer,
-                      size: 12, color: Color(0xFF92400E)),
+                      size: 12, color: AppColors.amberDark),
                   SizedBox(width: 5),
                   Text(
                     'QUESTION',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF92400E),
+                      color: AppColors.amberDark,
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -972,7 +972,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1F2937),
+            color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 16),
@@ -981,8 +981,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF3C7),
-            border: Border.all(color: const Color(0xFFFCD34D)),
+            color: const AppColors.amberSurface,
+            border: Border.all(color: const AppColors.amberBorder),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Column(
@@ -990,14 +990,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             children: [
               Row(children: [
                 const Icon(Icons.category,
-                    size: 15, color: Color(0xFF92400E)),
+                    size: 15, color: AppColors.amberDark),
                 const SizedBox(width: 6),
                 Text(
                   (_post!['categories'] as Map?)?['name'] ??
                       'Uncategorized',
                   style: const TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF92400E),
+                    color: AppColors.amberDark,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1005,23 +1005,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               const SizedBox(height: 8),
               Row(children: [
                 const Icon(Icons.access_time,
-                    size: 15, color: Color(0xFF92400E)),
+                    size: 15, color: AppColors.amberDark),
                 const SizedBox(width: 6),
                 Text(
                   _formatDate(_post!['created_at']),
                   style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF92400E)),
+                      fontSize: 12, color: AppColors.amberDark),
                 ),
               ]),
               const SizedBox(height: 8),
               Row(children: [
                 const Icon(Icons.visibility,
-                    size: 15, color: Color(0xFF92400E)),
+                    size: 15, color: AppColors.amberDark),
                 const SizedBox(width: 6),
                 Text(
                   '${_post!['views_count'] ?? 0} views',
                   style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF92400E)),
+                      fontSize: 12, color: AppColors.amberDark),
                 ),
               ]),
             ],
@@ -1036,14 +1036,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: const Color(0xFFD1D5DB)),
+            border: Border.all(color: const AppColors.border),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
             _post!['content'] ?? '',
             style: const TextStyle(
               fontSize: 14,
-              color: Color(0xFF374151),
+              color: AppColors.textSecondary,
               height: 1.65,
             ),
           ),
@@ -1065,27 +1065,27 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
-            border: Border.all(color: const Color(0xFFD1D5DB)),
+            color: const AppColors.surfaceFaint,
+            border: Border.all(color: const AppColors.border),
             borderRadius: BorderRadius.circular(4),
           ),
           child: const Column(
             children: [
               Icon(Icons.comment_outlined,
-                  size: 40, color: Color(0xFF9CA3AF)),
+                  size: 40, color: AppColors.textSubtle),
               SizedBox(height: 12),
               Text(
                 'Comments & Discussion',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF6B7280),
+                  color: AppColors.textMuted,
                 ),
               ),
               SizedBox(height: 6),
               Text(
                 'Coming soon! You will be able to discuss this post with other researchers.',
-                style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+                style: TextStyle(fontSize: 13, color: AppColors.textSubtle),
                 textAlign: TextAlign.center,
               ),
             ],

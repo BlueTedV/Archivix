@@ -64,7 +64,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading categories: ${error.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
           ),
         );
       }
@@ -100,7 +100,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('File too large! Maximum size is 50MB'),
-                  backgroundColor: Color(0xFF991B1B),
+                  backgroundColor: AppColors.errorDark,
                 ),
               );
             }
@@ -124,7 +124,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('File too large! Maximum size is 50MB'),
-                  backgroundColor: Color(0xFF991B1B),
+                  backgroundColor: AppColors.errorDark,
                 ),
               );
             }
@@ -144,7 +144,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error picking file: ${e.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
           ),
         );
       }
@@ -158,7 +158,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a PDF file'),
-          backgroundColor: Color(0xFF991B1B),
+          backgroundColor: AppColors.errorDark,
         ),
       );
       return;
@@ -243,7 +243,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Paper submitted successfully!'),
-            backgroundColor: Color(0xFF059669),
+            backgroundColor: AppColors.success,
           ),
         );
         
@@ -266,7 +266,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${error.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
           ),
         );
       }
@@ -310,7 +310,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF374151),
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -318,7 +318,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   controller: _titleController,
                   decoration: const InputDecoration(
                     hintText: 'Enter your paper title',
-                    hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                    hintStyle: TextStyle(color: AppColors.textSubtle),
                   ),
                   maxLines: 2,
                   validator: (value) {
@@ -335,7 +335,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF374151),
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -343,7 +343,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: const Color(0xFF9CA3AF)),
+                    border: Border.all(color: const AppColors.textSubtle),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: DropdownButtonHideUnderline(
@@ -374,7 +374,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF374151),
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -382,7 +382,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   controller: _abstractController,
                   decoration: const InputDecoration(
                     hintText: 'Enter your paper abstract',
-                    hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                    hintStyle: TextStyle(color: AppColors.textSubtle),
                     alignLabelWithHint: true,
                   ),
                   maxLines: 8,
@@ -401,7 +401,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                     Container(
                       width: 3,
                       height: 20,
-                      color: const Color(0xFF4A5568),
+                      color: const AppColors.slatePrimary,
                     ),
                     const SizedBox(width: 8),
                     const Text(
@@ -409,7 +409,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ],
@@ -421,7 +421,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF374151),
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -429,7 +429,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   controller: _authorNameController,
                   decoration: const InputDecoration(
                     hintText: 'Full name',
-                    hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                    hintStyle: TextStyle(color: AppColors.textSubtle),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -445,7 +445,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF374151),
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -453,7 +453,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   controller: _authorEmailController,
                   decoration: const InputDecoration(
                     hintText: 'author@email.com',
-                    hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                    hintStyle: TextStyle(color: AppColors.textSubtle),
                   ),
                   keyboardType: TextInputType.emailAddress,
                 ),
@@ -464,7 +464,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF374151),
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -472,7 +472,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   controller: _authorAffiliationController,
                   decoration: const InputDecoration(
                     hintText: 'University or Institution',
-                    hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                    hintStyle: TextStyle(color: AppColors.textSubtle),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -483,7 +483,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                     Container(
                       width: 3,
                       height: 20,
-                      color: const Color(0xFF4A5568),
+                      color: const AppColors.slatePrimary,
                     ),
                     const SizedBox(width: 8),
                     const Text(
@@ -491,7 +491,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ],
@@ -502,7 +502,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: const Color(0xFFD1D5DB)),
+                    border: Border.all(color: const AppColors.border),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Column(
@@ -510,7 +510,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.attach_file, size: 18, color: Color(0xFF6B7280)),
+                          const Icon(Icons.attach_file, size: 18, color: AppColors.textMuted),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -518,8 +518,8 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: _fileName != null 
-                                    ? const Color(0xFF374151)
-                                    : const Color(0xFF9CA3AF),
+                                    ? const AppColors.textSecondary
+                                    : const AppColors.textSubtle,
                                 fontWeight: _fileName != null 
                                     ? FontWeight.w600
                                     : FontWeight.normal,
@@ -534,7 +534,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                           'Size: ${(_fileSize! / 1024 / 1024).toStringAsFixed(2)} MB',
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF6B7280),
+                            color: AppColors.textMuted,
                           ),
                         ),
                       ],
@@ -544,14 +544,14 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                         child: OutlinedButton(
                           onPressed: _isUploading ? null : _pickFile,
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF9CA3AF)),
+                            side: const BorderSide(color: AppColors.textSubtle),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
                           child: const Text(
                             'Choose PDF File',
-                            style: TextStyle(color: Color(0xFF374151)),
+                            style: TextStyle(color: AppColors.textSecondary),
                           ),
                         ),
                       ),
@@ -565,7 +565,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                   LinearProgressIndicator(
                     value: _uploadProgress,
                     backgroundColor: const Color(0xFFE5E7EB),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4A5568)),
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.slatePrimary),
                   ),
                   const SizedBox(height: 8),
                   Center(
@@ -573,7 +573,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                       'Uploading... ${(_uploadProgress * 100).toInt()}%',
                       style: const TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF6B7280),
+                        color: AppColors.textMuted,
                       ),
                     ),
                   ),

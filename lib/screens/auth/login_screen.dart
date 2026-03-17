@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'register_screen.dart';
 import '../home_screen.dart';
 import 'forgot_password_screen.dart';
+import '../../core/constants/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -42,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error.message),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: AppColors.errorDark,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -52,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Unexpected error occurred'),
-            backgroundColor: Color(0xFF991B1B),
+            backgroundColor: AppColors.errorDark,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -76,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE8E8E8),
+      backgroundColor: AppColors.surfaceFaint,
       body: Center(
         child: SingleChildScrollView(
           child: Padding(
@@ -84,8 +85,8 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Container(
               constraints: const BoxConstraints(maxWidth: 450),
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFF9CA3AF), width: 1),
+                color: AppColors.surfaceWhite,
+                border: Border.all(color: AppColors.textSubtle, width: 1),
                 borderRadius: BorderRadius.circular(4),
                 boxShadow: [
                   BoxShadow(
@@ -103,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF4A5568),
+                      color: AppColors.slatePrimary,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(4),
                         topRight: Radius.circular(4),
@@ -151,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1F2937),
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -159,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Access your research archive',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Color(0xFF6B7280),
+                              color: AppColors.textMuted,
                             ),
                           ),
                           const SizedBox(height: 24),
@@ -169,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF374151),
+                              color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -177,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _emailController,
                             decoration: const InputDecoration(
                               hintText: 'your.email@domain.edu',
-                              hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                              hintStyle: TextStyle(color: AppColors.textSubtle),
                             ),
                             keyboardType: TextInputType.emailAddress,
                             validator: (value) {
@@ -197,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF374151),
+                              color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -205,7 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _passwordController,
                             decoration: const InputDecoration(
                               hintText: '••••••••',
-                              hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                              hintStyle: TextStyle(color: AppColors.textSubtle),
                             ),
                             obscureText: true,
                             validator: (value) {
@@ -240,7 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 'Forgot Password?',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Color(0xFF4A5568),
+                                  color: AppColors.slatePrimary,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -259,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
                                         valueColor: AlwaysStoppedAnimation<Color>(
-                                          Color(0xFF4A5568),
+                                          AppColors.slatePrimary,
                                         ),
                                       ),
                                     ),
@@ -280,7 +281,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Container(
                             width: double.infinity,
                             height: 1,
-                            color: const Color(0xFFE5E7EB),
+                            color: AppColors.border,
                           ),
                           const SizedBox(height: 16),
                           
@@ -291,7 +292,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 'New to ResearchArchive?',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Color(0xFF6B7280),
+                                  color: AppColors.textMuted,
                                 ),
                               ),
                               const SizedBox(width: 4),
@@ -313,7 +314,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF4A5568),
+                                    color: AppColors.slatePrimary,
                                     decoration: TextDecoration.underline,
                                   ),
                                 ),

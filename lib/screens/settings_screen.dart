@@ -28,7 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Verification email sent! Please check your inbox.'),
-            backgroundColor: Color(0xFF059669),
+            backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -38,7 +38,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${error.toString()}'),
-            backgroundColor: const Color(0xFF991B1B),
+            backgroundColor: const AppColors.errorDark,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -81,7 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF374151),
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -107,7 +107,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF374151),
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -136,7 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF374151),
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -164,14 +164,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4),
-            side: const BorderSide(color: Color(0xFFD1D5DB)),
+            side: const BorderSide(color: AppColors.border),
           ),
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.of(context).pop(),
               child: const Text(
                 'Cancel',
-                style: TextStyle(color: Color(0xFF6B7280)),
+                style: TextStyle(color: AppColors.textMuted),
               ),
             ),
             ElevatedButton(
@@ -206,7 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Password changed successfully!'),
-                              backgroundColor: Color(0xFF059669),
+                              backgroundColor: AppColors.success,
                             ),
                           );
                         }
@@ -218,7 +218,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(error.message),
-                              backgroundColor: const Color(0xFF991B1B),
+                              backgroundColor: const AppColors.errorDark,
                             ),
                           );
                         }
@@ -230,14 +230,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Error: ${error.toString()}'),
-                              backgroundColor: const Color(0xFF991B1B),
+                              backgroundColor: const AppColors.errorDark,
                             ),
                           );
                         }
                       }
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4A5568),
+                backgroundColor: const AppColors.slatePrimary,
               ),
               child: isLoading
                   ? const SizedBox(
@@ -273,14 +273,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text(
               'Cancel',
-              style: TextStyle(color: Color(0xFF6B7280)),
+              style: TextStyle(color: AppColors.textMuted),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text(
               'Sign Out',
-              style: TextStyle(color: Color(0xFF991B1B)),
+              style: TextStyle(color: AppColors.errorDark),
             ),
           ),
         ],
@@ -314,7 +314,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border.all(color: const Color(0xFFD1D5DB)),
+              border: Border.all(color: const AppColors.border),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Column(
@@ -323,7 +323,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4A5568),
+                    color: const AppColors.slatePrimary,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Icon(
@@ -338,7 +338,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -346,7 +346,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Member since ${_formatDate(user?.createdAt)}',
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF6B7280),
+                    color: AppColors.textMuted,
                   ),
                 ),
               ],
@@ -360,7 +360,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 width: 3,
                 height: 20,
-                color: const Color(0xFF4A5568),
+                color: const AppColors.slatePrimary,
               ),
               const SizedBox(width: 8),
               const Text(
@@ -368,7 +368,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
@@ -379,12 +379,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: isEmailConfirmed 
-                  ? const Color(0xFFD1FAE5) 
-                  : const Color(0xFFFEF3C7),
+                  ? const AppColors.successLight 
+                  : const AppColors.amberSurface,
               border: Border.all(
                 color: isEmailConfirmed 
                     ? const Color(0xFF6EE7B7) 
-                    : const Color(0xFFFCD34D),
+                    : const AppColors.amberBorder,
               ),
               borderRadius: BorderRadius.circular(4),
             ),
@@ -398,7 +398,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       size: 20,
                       color: isEmailConfirmed 
                           ? const Color(0xFF047857) 
-                          : const Color(0xFF92400E),
+                          : const AppColors.amberDark,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -411,7 +411,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           fontWeight: FontWeight.w600,
                           color: isEmailConfirmed 
                               ? const Color(0xFF047857) 
-                              : const Color(0xFF92400E),
+                              : const AppColors.amberDark,
                         ),
                       ),
                     ),
@@ -424,7 +424,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF92400E),
+                      color: AppColors.amberDark,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -433,9 +433,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('• Submit research papers', style: TextStyle(fontSize: 11, color: Color(0xFF92400E))),
-                        Text('• Download papers', style: TextStyle(fontSize: 11, color: Color(0xFF92400E))),
-                        Text('• Comment & discuss', style: TextStyle(fontSize: 11, color: Color(0xFF92400E))),
+                        Text('• Submit research papers', style: TextStyle(fontSize: 11, color: AppColors.amberDark)),
+                        Text('• Download papers', style: TextStyle(fontSize: 11, color: AppColors.amberDark)),
+                        Text('• Comment & discuss', style: TextStyle(fontSize: 11, color: AppColors.amberDark)),
                       ],
                     ),
                   ),
@@ -450,7 +450,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF92400E),
+                                  AppColors.amberDark,
                                 ),
                               ),
                             ),
@@ -458,8 +458,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : OutlinedButton(
                             onPressed: _sendVerificationEmail,
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFF92400E)),
-                              foregroundColor: const Color(0xFF92400E),
+                              side: const BorderSide(color: AppColors.amberDark),
+                              foregroundColor: const AppColors.amberDark,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(4),
                               ),
@@ -485,7 +485,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 width: 3,
                 height: 20,
-                color: const Color(0xFF4A5568),
+                color: const AppColors.slatePrimary,
               ),
               const SizedBox(width: 8),
               const Text(
@@ -493,7 +493,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
@@ -559,8 +559,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: OutlinedButton(
               onPressed: _signOut,
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFF991B1B)),
-                foregroundColor: const Color(0xFF991B1B),
+                side: const BorderSide(color: AppColors.errorDark),
+                foregroundColor: const AppColors.errorDark,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -581,7 +581,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'User ID: ${user?.id.substring(0, 8)}...',
               style: const TextStyle(
                 fontSize: 11,
-                color: Color(0xFF9CA3AF),
+                color: AppColors.textSubtle,
               ),
             ),
           ),
@@ -601,30 +601,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
         color: Colors.white,
         border: Border(
           bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
-          left: BorderSide(color: Color(0xFFD1D5DB), width: 1),
-          right: BorderSide(color: Color(0xFFD1D5DB), width: 1),
+          left: BorderSide(color: AppColors.border, width: 1),
+          right: BorderSide(color: AppColors.border, width: 1),
         ),
       ),
       child: ListTile(
-        leading: Icon(icon, color: const Color(0xFF4A5568)),
+        leading: Icon(icon, color: const AppColors.slatePrimary),
         title: Text(
           title,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF1F2937),
+            color: AppColors.textPrimary,
           ),
         ),
         subtitle: Text(
           subtitle,
           style: const TextStyle(
             fontSize: 12,
-            color: Color(0xFF6B7280),
+            color: AppColors.textMuted,
           ),
         ),
         trailing: const Icon(
           Icons.chevron_right,
-          color: Color(0xFF9CA3AF),
+          color: AppColors.textSubtle,
         ),
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
