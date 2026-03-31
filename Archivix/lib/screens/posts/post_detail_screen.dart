@@ -4,11 +4,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
-import 'package:archivix/core/constants/app_colors.dart';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../papers/pdf_viewer_screen.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/content_engagement_service.dart';
+import 'edit_post_screen.dart';
+import 'post_history_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // pubspec.yaml dependencies (add if not already present):
@@ -28,7 +30,7 @@ import '../../core/constants/app_colors.dart';
 class PostDetailScreen extends StatefulWidget {
   final String postId;
 
-  const PostDetailScreen({Key? key, required this.postId}) : super(key: key);
+  const PostDetailScreen({super.key, required this.postId});
 
   @override
   State<PostDetailScreen> createState() => _PostDetailScreenState();
@@ -36,11 +38,15 @@ class PostDetailScreen extends StatefulWidget {
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
   final supabase = Supabase.instance.client;
+  final _engagementService = ContentEngagementService();
 
   Map<String, dynamic>? _post;
   List<Map<String, dynamic>> _attachments = [];
   bool _isLoading = true;
   String? _error;
+  bool _isReacting = false;
+  ContentEngagementSummary _engagementSummary =
+      const ContentEngagementSummary();
 
   // attachment id → resolved public URL
   final Map<String, String> _publicUrls = {};
@@ -55,6 +61,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   void initState() {
     super.initState();
     _loadPostDetails();
+    _loadReactionSummary();
     _incrementViewCount();
   }
 
@@ -64,6 +71,20 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _loadReactionSummary() async {
+    final summary = await _engagementService.loadSummary(
+      contentType: 'post',
+      contentId: widget.postId,
+      userId: supabase.auth.currentUser?.id,
+    );
+
+    if (mounted) {
+      setState(() {
+        _engagementSummary = summary;
+      });
+    }
   }
 
   // ─── Data loading ───────────────────────────────────────────────────────────
@@ -82,6 +103,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             id,
             title,
             content,
+            category_id,
             created_at,
             views_count,
             user_id,
@@ -104,7 +126,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       for (final attachment in attachments) {
         final id = attachment['id'] as String;
         final storagePath = attachment['file_url'] as String;
-        final fileType = (attachment['file_type'] as String? ?? '').toLowerCase();
+        final fileType = (attachment['file_type'] as String? ?? '')
+            .toLowerCase();
 
         try {
           final publicUrl = supabase.storage
@@ -114,8 +137,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           _publicUrls[id] = publicUrl;
 
           if (fileType == 'video') {
-            final controller =
-                VideoPlayerController.networkUrl(Uri.parse(publicUrl));
+            final controller = VideoPlayerController.networkUrl(
+              Uri.parse(publicUrl),
+            );
             await controller.initialize();
             controller.addListener(() {
               if (mounted) setState(() {});
@@ -128,6 +152,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       }
 
       if (mounted) {
+        postResponse['category_name'] =
+            (postResponse['categories'] as Map?)?['name'] ?? 'Uncategorized';
+
         setState(() {
           _post = postResponse;
           _attachments = attachments;
@@ -146,15 +173,78 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   Future<void> _incrementViewCount() async {
     try {
-      await supabase.rpc('increment_post_views', params: {
-        'post_id': widget.postId,
-      });
+      await supabase.rpc(
+        'increment_post_views',
+        params: {'post_id': widget.postId},
+      );
     } catch (e) {
       debugPrint('Error incrementing views: $e');
     }
   }
 
   // ─── Document: open PDF in viewer ───────────────────────────────────────────
+
+  Future<void> _toggleReaction(int reactionValue) async {
+    setState(() => _isReacting = true);
+
+    try {
+      final summary = await _engagementService.toggleReaction(
+        contentType: 'post',
+        contentId: widget.postId,
+        reactionValue: reactionValue,
+      );
+
+      if (mounted) {
+        setState(() {
+          _engagementSummary = summary;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.toString()),
+            backgroundColor: AppColors.errorDark,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isReacting = false);
+    }
+  }
+
+  bool get _isOwner =>
+      _post != null && _post!['user_id'] == supabase.auth.currentUser?.id;
+
+  Future<void> _openHistory() async {
+    if (_post == null) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PostHistoryScreen(
+          postId: widget.postId,
+          postTitle: _post!['title'] ?? 'Question History',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openEdit() async {
+    if (_post == null) return;
+
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EditPostScreen(
+          post: Map<String, dynamic>.from(_post!),
+          attachments: List<Map<String, dynamic>>.from(_attachments),
+        ),
+      ),
+    );
+
+    if (updated == true) {
+      _loadPostDetails();
+    }
+  }
 
   void _viewDocument(Map<String, dynamic> attachment) {
     final id = attachment['id'] as String;
@@ -169,10 +259,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         fileName.toLowerCase().endsWith('.pdf')) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => PdfViewerScreen(
-            pdfUrl: publicUrl,
-            title: fileName,
-          ),
+          builder: (_) => PdfViewerScreen(pdfUrl: publicUrl, title: fileName),
         ),
       );
     } else {
@@ -198,7 +285,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Storage permission is required to download files'),
+                content: Text(
+                  'Storage permission is required to download files',
+                ),
                 backgroundColor: AppColors.errorDark,
                 duration: Duration(seconds: 3),
               ),
@@ -305,8 +394,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel',
-                style: TextStyle(color: AppColors.textMuted)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textMuted),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -314,7 +405,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               openAppSettings();
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.slatePrimary),
+              backgroundColor: AppColors.slatePrimary,
+            ),
             child: const Text('Open Settings'),
           ),
         ],
@@ -352,6 +444,75 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   // ─── Section header ──────────────────────────────────────────────────────────
+
+  Widget _buildReactionRow() {
+    return Row(
+      children: [
+        _buildReactionChip(
+          icon: Icons.thumb_up_alt_outlined,
+          activeIcon: Icons.thumb_up_alt,
+          count: _engagementSummary.likesCount,
+          isActive: _engagementSummary.userReaction == 1,
+          activeColor: AppColors.success,
+          onTap: _isReacting ? null : () => _toggleReaction(1),
+        ),
+        const SizedBox(width: 8),
+        _buildReactionChip(
+          icon: Icons.thumb_down_alt_outlined,
+          activeIcon: Icons.thumb_down_alt,
+          count: _engagementSummary.dislikesCount,
+          isActive: _engagementSummary.userReaction == -1,
+          activeColor: AppColors.errorDark,
+          onTap: _isReacting ? null : () => _toggleReaction(-1),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReactionChip({
+    required IconData icon,
+    required IconData activeIcon,
+    required int count,
+    required bool isActive,
+    required Color activeColor,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? activeColor.withValues(alpha: 0.12) : Colors.white,
+          border: Border.all(
+            color: isActive
+                ? activeColor.withValues(alpha: 0.35)
+                : AppColors.amberBorder,
+          ),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isActive ? activeIcon : icon,
+              size: 16,
+              color: isActive ? activeColor : AppColors.amberDark,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isActive ? activeColor : AppColors.amberDark,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildSectionHeader(String title) {
     return Row(
@@ -416,24 +577,31 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         child: CircularProgressIndicator(
                           value: progress.expectedTotalBytes != null
                               ? progress.cumulativeBytesLoaded /
-                                  progress.expectedTotalBytes!
+                                    progress.expectedTotalBytes!
                               : null,
                           strokeWidth: 2,
                           color: AppColors.slatePrimary,
                         ),
                       );
                     },
-                    errorBuilder: (_, __, ___) => _attachmentPlaceholder(
+                    errorBuilder: (_, _, _) => _attachmentPlaceholder(
                       height: 220,
                       child: const Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.broken_image,
-                              size: 40, color: AppColors.textSubtle),
+                          Icon(
+                            Icons.broken_image,
+                            size: 40,
+                            color: AppColors.textSubtle,
+                          ),
                           SizedBox(height: 8),
-                          Text('Could not load image',
-                              style: TextStyle(
-                                  fontSize: 12, color: AppColors.textSubtle)),
+                          Text(
+                            'Could not load image',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSubtle,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -445,7 +613,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     right: 0,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 7),
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.bottomCenter,
@@ -455,19 +625,27 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.photo,
-                              size: 12, color: Colors.white70),
+                          const Icon(
+                            Icons.photo,
+                            size: 12,
+                            color: Colors.white70,
+                          ),
                           const SizedBox(width: 5),
                           Expanded(
                             child: Text(
                               fileName,
                               style: const TextStyle(
-                                  fontSize: 11, color: Colors.white70),
+                                fontSize: 11,
+                                color: Colors.white70,
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const Icon(Icons.open_in_full,
-                              size: 12, color: Colors.white70),
+                          const Icon(
+                            Icons.open_in_full,
+                            size: 12,
+                            color: Colors.white70,
+                          ),
                         ],
                       ),
                     ),
@@ -490,9 +668,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           appBar: AppBar(
             backgroundColor: Colors.black,
             foregroundColor: Colors.white,
-            title: Text(title,
-                style: const TextStyle(fontSize: 14),
-                overflow: TextOverflow.ellipsis),
+            title: Text(
+              title,
+              style: const TextStyle(fontSize: 14),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           body: Center(
             child: InteractiveViewer(
@@ -523,15 +703,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           borderRadius: BorderRadius.circular(4),
         ),
         child: const Center(
-          child:
-              CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white54,
+          ),
         ),
       );
     }
 
     final isPlaying = controller.value.isPlaying;
-    final aspectRatio = controller.value.aspectRatio.isNaN ||
-            controller.value.aspectRatio == 0
+    final aspectRatio =
+        controller.value.aspectRatio.isNaN || controller.value.aspectRatio == 0
         ? 16 / 9
         : controller.value.aspectRatio;
 
@@ -550,7 +732,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             aspectRatio: aspectRatio,
             child: GestureDetector(
               onTap: () => setState(
-                  () => isPlaying ? controller.pause() : controller.play()),
+                () => isPlaying ? controller.pause() : controller.play(),
+              ),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -564,8 +747,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         color: Color(0x99000000),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.play_arrow,
-                          color: Colors.white, size: 36),
+                      child: const Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 36,
+                      ),
                     ),
                   ),
                 ],
@@ -587,13 +773,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
           // Controls row
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
                 GestureDetector(
                   onTap: () => setState(
-                      () => isPlaying ? controller.pause() : controller.play()),
+                    () => isPlaying ? controller.pause() : controller.play(),
+                  ),
                   child: Icon(
                     isPlaying ? Icons.pause : Icons.play_arrow,
                     color: AppColors.slatePrimary,
@@ -603,21 +789,28 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 const SizedBox(width: 8),
                 ValueListenableBuilder(
                   valueListenable: controller,
-                  builder: (_, value, __) => Text(
+                  builder: (_, value, _) => Text(
                     '${_formatDuration(value.position)} / ${_formatDuration(value.duration)}',
                     style: const TextStyle(
-                        fontSize: 11, color: AppColors.textSubtle),
+                      fontSize: 11,
+                      color: AppColors.textSubtle,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.videocam,
-                    size: 12, color: AppColors.textSubtle),
+                const Icon(
+                  Icons.videocam,
+                  size: 12,
+                  color: AppColors.textSubtle,
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     fileName,
                     style: const TextStyle(
-                        fontSize: 11, color: AppColors.textMuted),
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -625,7 +818,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   Text(
                     _formatFileSize(fileSize),
                     style: const TextStyle(
-                        fontSize: 11, color: AppColors.textSubtle),
+                      fontSize: 11,
+                      color: AppColors.textSubtle,
+                    ),
                   ),
               ],
             ),
@@ -643,7 +838,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final mimeType = (attachment['mime_type'] as String? ?? '').toLowerCase();
     final isDownloading = _isDownloading[id] ?? false;
 
-    final isPdf = mimeType == 'application/pdf' ||
+    final isPdf =
+        mimeType == 'application/pdf' ||
         fileName.toLowerCase().endsWith('.pdf');
 
     return Container(
@@ -692,7 +888,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   Text(
                     _formatFileSize(fileSize),
                     style: const TextStyle(
-                        fontSize: 11, color: AppColors.textSubtle),
+                      fontSize: 11,
+                      color: AppColors.textSubtle,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 4),
@@ -719,8 +917,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 ? null
                                 : () => _viewDocument(attachment),
                             icon: const Icon(Icons.visibility, size: 14),
-                            label: const Text('View PDF',
-                                style: TextStyle(fontSize: 12)),
+                            label: const Text(
+                              'View PDF',
+                              style: TextStyle(fontSize: 12),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.slatePrimary,
                               padding: EdgeInsets.zero,
@@ -745,7 +945,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                        AppColors.slatePrimary),
+                                      AppColors.slatePrimary,
+                                    ),
                                   ),
                                 )
                               : const Icon(Icons.download, size: 14),
@@ -755,7 +956,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.slatePrimary,
-                            side: const BorderSide(color: AppColors.slatePrimary),
+                            side: const BorderSide(
+                              color: AppColors.slatePrimary,
+                            ),
                             padding: EdgeInsets.zero,
                           ),
                         ),
@@ -796,8 +999,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               border: Border.all(color: AppColors.border),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: const Icon(Icons.insert_drive_file,
-                color: AppColors.textMuted, size: 24),
+            child: const Icon(
+              Icons.insert_drive_file,
+              color: AppColors.textMuted,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -823,7 +1029,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       if (fileSize != null) _formatFileSize(fileSize),
                     ].join(' · '),
                     style: const TextStyle(
-                        fontSize: 11, color: AppColors.textSubtle),
+                      fontSize: 11,
+                      color: AppColors.textSubtle,
+                    ),
                   ),
                 ],
               ],
@@ -842,8 +1050,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       height: 12,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(AppColors.slatePrimary),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.slatePrimary,
+                        ),
                       ),
                     )
                   : const Icon(Icons.download, size: 14),
@@ -863,8 +1072,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   // ── Shared loading placeholder ───────────────────────────────────────────────
-  Widget _attachmentPlaceholder(
-      {required double height, required Widget child}) {
+  Widget _attachmentPlaceholder({
+    required double height,
+    required Widget child,
+  }) {
     return Container(
       height: height,
       width: double.infinity,
@@ -880,15 +1091,29 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Post Detail'),
+        actions: [
+          if (_post != null)
+            IconButton(
+              icon: const Icon(Icons.history),
+              onPressed: _openHistory,
+              tooltip: 'View History',
+            ),
+          if (_isOwner)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: _openEdit,
+              tooltip: 'Edit Question',
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? _buildErrorState()
-              : RefreshIndicator(
-                  onRefresh: _loadPostDetails,
-                  child: _buildContent(),
-                ),
+          ? _buildErrorState()
+          : RefreshIndicator(
+              onRefresh: _loadPostDetails,
+              child: _buildContent(),
+            ),
     );
   }
 
@@ -899,8 +1124,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline,
-                size: 48, color: AppColors.errorDark),
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.errorDark,
+            ),
             const SizedBox(height: 16),
             const Text(
               'Error loading post',
@@ -914,14 +1142,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style:
-                  const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadPostDetails,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.slatePrimary),
+                backgroundColor: AppColors.slatePrimary,
+              ),
               child: const Text('Retry'),
             ),
           ],
@@ -938,8 +1166,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         Row(
           children: [
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: AppColors.amberSurface,
                 border: Border.all(color: AppColors.amberBorder),
@@ -948,8 +1175,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.question_answer,
-                      size: 12, color: AppColors.amberDark),
+                  Icon(
+                    Icons.question_answer,
+                    size: 12,
+                    color: AppColors.amberDark,
+                  ),
                   SizedBox(width: 5),
                   Text(
                     'QUESTION',
@@ -989,42 +1219,62 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                const Icon(Icons.category,
-                    size: 15, color: AppColors.amberDark),
-                const SizedBox(width: 6),
-                Text(
-                  (_post!['categories'] as Map?)?['name'] ??
-                      'Uncategorized',
-                  style: const TextStyle(
-                    fontSize: 13,
+              Row(
+                children: [
+                  const Icon(
+                    Icons.category,
+                    size: 15,
                     color: AppColors.amberDark,
-                    fontWeight: FontWeight.w600,
                   ),
-                ),
-              ]),
+                  const SizedBox(width: 6),
+                  Text(
+                    (_post!['categories'] as Map?)?['name'] ?? 'Uncategorized',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.amberDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
-              Row(children: [
-                const Icon(Icons.access_time,
-                    size: 15, color: AppColors.amberDark),
-                const SizedBox(width: 6),
-                Text(
-                  _formatDate(_post!['created_at']),
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.amberDark),
-                ),
-              ]),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.access_time,
+                    size: 15,
+                    color: AppColors.amberDark,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _formatDate(_post!['created_at']),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.amberDark,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
-              Row(children: [
-                const Icon(Icons.visibility,
-                    size: 15, color: AppColors.amberDark),
-                const SizedBox(width: 6),
-                Text(
-                  '${_post!['views_count'] ?? 0} views',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.amberDark),
-                ),
-              ]),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.visibility,
+                    size: 15,
+                    color: AppColors.amberDark,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_post!['views_count'] ?? 0} views',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.amberDark,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildReactionRow(),
             ],
           ),
         ),
@@ -1072,8 +1322,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           ),
           child: const Column(
             children: [
-              Icon(Icons.comment_outlined,
-                  size: 40, color: AppColors.textSubtle),
+              Icon(
+                Icons.comment_outlined,
+                size: 40,
+                color: AppColors.textSubtle,
+              ),
               SizedBox(height: 12),
               Text(
                 'Comments & Discussion',

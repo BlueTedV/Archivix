@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/content_engagement_service.dart';
 import '../papers/paper_detail_screen.dart';
 import '../posts/post_detail_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   final VoidCallback onNavigateToSettings;
-  
-  const FeedScreen({Key? key, required this.onNavigateToSettings}) : super(key: key);
+
+  const FeedScreen({super.key, required this.onNavigateToSettings});
 
   @override
   State<FeedScreen> createState() => _FeedScreenState();
@@ -15,12 +16,14 @@ class FeedScreen extends StatefulWidget {
 
 class _FeedScreenState extends State<FeedScreen> {
   final supabase = Supabase.instance.client;
+  final _engagementService = ContentEngagementService();
   List<Map<String, dynamic>> _papers = [];
   List<Map<String, dynamic>> _posts = [];
   List<Map<String, dynamic>> _combinedItems = [];
   bool _isLoading = true;
   String? _error;
   String _filter = 'all'; // 'all', 'papers', 'posts'
+  String _sortMode = 'recent'; // 'recent', 'popular', 'quality'
 
   @override
   void initState() {
@@ -53,8 +56,8 @@ class _FeedScreenState extends State<FeedScreen> {
             ''')
             .eq('status', 'published')
             .order('created_at', ascending: false)
-            .limit(20);
-        
+            .limit(100);
+
         papers = List<Map<String, dynamic>>.from(papersResponse);
         // Add type marker
         for (var paper in papers) {
@@ -76,8 +79,8 @@ class _FeedScreenState extends State<FeedScreen> {
               categories (name)
             ''')
             .order('created_at', ascending: false)
-            .limit(20);
-        
+            .limit(100);
+
         posts = List<Map<String, dynamic>>.from(postsResponse);
         // Add type marker
         for (var post in posts) {
@@ -85,13 +88,11 @@ class _FeedScreenState extends State<FeedScreen> {
         }
       }
 
-      // Combine and sort by date
+      await _attachEngagementData(papers, 'paper');
+      await _attachEngagementData(posts, 'post');
+
       List<Map<String, dynamic>> combined = [...papers, ...posts];
-      combined.sort((a, b) {
-        final aDate = DateTime.parse(a['created_at']);
-        final bDate = DateTime.parse(b['created_at']);
-        return bDate.compareTo(aDate); // Most recent first
-      });
+      _sortCombinedItems(combined);
 
       if (mounted) {
         setState(() {
@@ -133,11 +134,109 @@ class _FeedScreenState extends State<FeedScreen> {
 
   String _getAuthors(List<dynamic>? authors) {
     if (authors == null || authors.isEmpty) return 'Unknown Author';
-    
+
     final names = authors.map((a) => a['name'] as String).toList();
     if (names.length == 1) return names[0];
     if (names.length == 2) return '${names[0]} and ${names[1]}';
     return '${names[0]} et al.';
+  }
+
+  Future<void> _attachEngagementData(
+    List<Map<String, dynamic>> items,
+    String contentType,
+  ) async {
+    if (items.isEmpty) return;
+
+    final summaries = await _engagementService.loadSummaries(
+      contentType: contentType,
+      contentIds: items.map((item) => '${item['id']}').toList(),
+      userId: supabase.auth.currentUser?.id,
+    );
+
+    for (final item in items) {
+      final summary =
+          summaries['${item['id']}'] ?? const ContentEngagementSummary();
+      _applyEngagementSummary(item, summary);
+    }
+  }
+
+  void _applyEngagementSummary(
+    Map<String, dynamic> item,
+    ContentEngagementSummary summary,
+  ) {
+    final viewsCount = item['views_count'] ?? 0;
+    item['likes_count'] = summary.likesCount;
+    item['dislikes_count'] = summary.dislikesCount;
+    item['user_reaction'] = summary.userReaction;
+    item['popularity_score'] = _engagementService.popularityScore(
+      likesCount: summary.likesCount,
+      dislikesCount: summary.dislikesCount,
+      viewsCount: viewsCount,
+    );
+    item['quality_score'] = _engagementService.qualityScore(
+      likesCount: summary.likesCount,
+      dislikesCount: summary.dislikesCount,
+      viewsCount: viewsCount,
+    );
+  }
+
+  void _sortCombinedItems(List<Map<String, dynamic>> items) {
+    items.sort((a, b) {
+      if (_sortMode == 'popular') {
+        final scoreCompare = (b['popularity_score'] ?? 0).compareTo(
+          a['popularity_score'] ?? 0,
+        );
+        if (scoreCompare != 0) return scoreCompare;
+      } else if (_sortMode == 'quality') {
+        final scoreCompare = (b['quality_score'] ?? 0).compareTo(
+          a['quality_score'] ?? 0,
+        );
+        if (scoreCompare != 0) return scoreCompare;
+      }
+
+      final aDate = DateTime.tryParse('${a['created_at']}') ?? DateTime(1970);
+      final bDate = DateTime.tryParse('${b['created_at']}') ?? DateTime(1970);
+      return bDate.compareTo(aDate);
+    });
+  }
+
+  Future<void> _handleFeedReaction({
+    required String contentType,
+    required String contentId,
+    required int reactionValue,
+  }) async {
+    try {
+      final summary = await _engagementService.toggleReaction(
+        contentType: contentType,
+        contentId: contentId,
+        reactionValue: reactionValue,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        for (final collection in [_papers, _posts, _combinedItems]) {
+          for (final item in collection) {
+            if (item['content_type'] == contentType &&
+                '${item['id']}' == contentId) {
+              _applyEngagementSummary(item, summary);
+            }
+          }
+        }
+
+        _sortCombinedItems(_combinedItems);
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString()),
+          backgroundColor: AppColors.errorDark,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -153,7 +252,7 @@ class _FeedScreenState extends State<FeedScreen> {
             const SizedBox(width: 8),
             const Text('ArchivIX'),
           ],
-        ),  
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, size: 20),
@@ -204,7 +303,9 @@ class _FeedScreenState extends State<FeedScreen> {
                               'Check your email or tap here to resend verification.',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.amberDark.withOpacity(0.9),
+                                color: AppColors.amberDark.withValues(
+                                  alpha: 0.9,
+                                ),
                               ),
                             ),
                           ],
@@ -220,7 +321,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                 ),
               ),
-            
+
             // Welcome banner
             Container(
               padding: const EdgeInsets.all(16),
@@ -245,30 +346,26 @@ class _FeedScreenState extends State<FeedScreen> {
                     user?.email ?? 'User',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            
-            // Section header with filter
+
+            // Section header with filters
             Row(
               children: [
-                Container(
-                  width: 3,
-                  height: 20,
-                  color: AppColors.slatePrimary,
-                ),
+                Container(width: 3, height: 20, color: AppColors.slatePrimary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    _filter == 'all' 
-                        ? 'Recent Activity'
-                        : _filter == 'papers'
-                            ? 'Recent Papers'
-                            : 'Recent Questions',
+                    _sortMode == 'popular'
+                        ? 'Popular Activity'
+                        : _sortMode == 'quality'
+                        ? 'Quality Activity'
+                        : 'Recent Activity',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -276,46 +373,92 @@ class _FeedScreenState extends State<FeedScreen> {
                     ),
                   ),
                 ),
-                // Filter dropdown
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: AppColors.slatePrimary),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: DropdownButton<String>(
-                    value: _filter,
-                    underline: const SizedBox(),
-                    isDense: true,
-                    icon: const Icon(Icons.filter_list, size: 16, color: AppColors.slatePrimary),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDropdownShell(
+                    child: DropdownButton<String>(
+                      value: _sortMode,
+                      underline: const SizedBox(),
+                      isExpanded: true,
+                      isDense: true,
+                      icon: const Icon(
+                        Icons.auto_graph,
+                        size: 16,
+                        color: AppColors.slatePrimary,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'recent',
+                          child: Text('Recent'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'popular',
+                          child: Text('Popular'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'quality',
+                          child: Text('Quality'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _sortMode = value;
+                          _sortCombinedItems(_combinedItems);
+                        });
+                      },
                     ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'all',
-                        child: Text('All'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildDropdownShell(
+                    child: DropdownButton<String>(
+                      value: _filter,
+                      underline: const SizedBox(),
+                      isExpanded: true,
+                      isDense: true,
+                      icon: const Icon(
+                        Icons.filter_list,
+                        size: 16,
+                        color: AppColors.slatePrimary,
                       ),
-                      DropdownMenuItem(
-                        value: 'papers',
-                        child: Text('Papers'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
                       ),
-                      DropdownMenuItem(
-                        value: 'posts',
-                        child: Text('Questions'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'all',
+                          child: Text('All Content'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'papers',
+                          child: Text('Documents'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'posts',
+                          child: Text('Questions'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
                         setState(() {
                           _filter = value;
                         });
                         _loadContent();
-                      }
-                    },
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -323,13 +466,10 @@ class _FeedScreenState extends State<FeedScreen> {
             const SizedBox(height: 8),
             Text(
               '${_combinedItems.length} items',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textMuted,
-              ),
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
             const SizedBox(height: 12),
-            
+
             // Papers list
             if (_isLoading)
               const Center(
@@ -391,11 +531,11 @@ class _FeedScreenState extends State<FeedScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      _filter == 'papers' 
+                      _filter == 'papers'
                           ? 'No papers yet'
                           : _filter == 'posts'
-                              ? 'No questions yet'
-                              : 'No content yet',
+                          ? 'No questions yet'
+                          : 'No content yet',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -407,8 +547,8 @@ class _FeedScreenState extends State<FeedScreen> {
                       _filter == 'papers'
                           ? 'Be the first to submit a paper!'
                           : _filter == 'posts'
-                              ? 'Be the first to ask a question!'
-                              : 'Be the first to contribute!',
+                          ? 'Be the first to ask a question!'
+                          : 'Be the first to contribute!',
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textSubtle,
@@ -420,11 +560,11 @@ class _FeedScreenState extends State<FeedScreen> {
             else
               ..._combinedItems.map((item) {
                 final contentType = item['content_type'];
-                
+
                 if (contentType == 'paper') {
                   final category = item['categories'] as Map<String, dynamic>?;
                   final authors = item['paper_authors'] as List<dynamic>?;
-                  
+
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _buildPaperCard(
@@ -435,12 +575,25 @@ class _FeedScreenState extends State<FeedScreen> {
                       date: _formatDate(item['created_at']),
                       views: item['views_count'] ?? 0,
                       abstract: item['abstract'],
+                      likesCount: item['likes_count'] ?? 0,
+                      dislikesCount: item['dislikes_count'] ?? 0,
+                      userReaction: item['user_reaction'],
+                      onLike: () => _handleFeedReaction(
+                        contentType: 'paper',
+                        contentId: '${item['id']}',
+                        reactionValue: 1,
+                      ),
+                      onDislike: () => _handleFeedReaction(
+                        contentType: 'paper',
+                        contentId: '${item['id']}',
+                        reactionValue: -1,
+                      ),
                     ),
                   );
                 } else {
                   // Post card
                   final category = item['categories'] as Map<String, dynamic>?;
-                  
+
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _buildPostCard(
@@ -450,10 +603,23 @@ class _FeedScreenState extends State<FeedScreen> {
                       category: category?['name'] ?? 'Uncategorized',
                       date: _formatDate(item['created_at']),
                       views: item['views_count'] ?? 0,
+                      likesCount: item['likes_count'] ?? 0,
+                      dislikesCount: item['dislikes_count'] ?? 0,
+                      userReaction: item['user_reaction'],
+                      onLike: () => _handleFeedReaction(
+                        contentType: 'post',
+                        contentId: '${item['id']}',
+                        reactionValue: 1,
+                      ),
+                      onDislike: () => _handleFeedReaction(
+                        contentType: 'post',
+                        contentId: '${item['id']}',
+                        reactionValue: -1,
+                      ),
                     ),
                   );
                 }
-              }).toList(),
+              }),
           ],
         ),
       ),
@@ -468,6 +634,11 @@ class _FeedScreenState extends State<FeedScreen> {
     required String date,
     required int views,
     required String abstract,
+    required int likesCount,
+    required int dislikesCount,
+    required int? userReaction,
+    required VoidCallback onLike,
+    required VoidCallback onDislike,
   }) {
     return InkWell(
       onTap: () {
@@ -498,20 +669,14 @@ class _FeedScreenState extends State<FeedScreen> {
             const SizedBox(height: 8),
             Text(
               authors,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textMuted,
-              ),
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
             const SizedBox(height: 8),
             Text(
-              abstract.length > 150 
-                  ? '${abstract.substring(0, 150)}...' 
+              abstract.length > 150
+                  ? '${abstract.substring(0, 150)}...'
                   : abstract,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textMuted,
-              ),
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -519,7 +684,10 @@ class _FeedScreenState extends State<FeedScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border.all(color: AppColors.border),
@@ -535,7 +703,11 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.visibility, size: 12, color: AppColors.textSubtle),
+                const Icon(
+                  Icons.visibility,
+                  size: 12,
+                  color: AppColors.textSubtle,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '$views',
@@ -554,6 +726,28 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildReactionButton(
+                  icon: Icons.thumb_up_alt_outlined,
+                  activeIcon: Icons.thumb_up_alt,
+                  count: likesCount,
+                  isActive: userReaction == 1,
+                  activeColor: AppColors.success,
+                  onTap: onLike,
+                ),
+                const SizedBox(width: 8),
+                _buildReactionButton(
+                  icon: Icons.thumb_down_alt_outlined,
+                  activeIcon: Icons.thumb_down_alt,
+                  count: dislikesCount,
+                  isActive: userReaction == -1,
+                  activeColor: AppColors.errorDark,
+                  onTap: onDislike,
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -567,13 +761,16 @@ class _FeedScreenState extends State<FeedScreen> {
     required String category,
     required String date,
     required int views,
+    required int likesCount,
+    required int dislikesCount,
+    required int? userReaction,
+    required VoidCallback onLike,
+    required VoidCallback onDislike,
   }) {
     return InkWell(
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => PostDetailScreen(postId: postId),
-          ),
+          MaterialPageRoute(builder: (_) => PostDetailScreen(postId: postId)),
         );
       },
       child: Container(
@@ -616,13 +813,10 @@ class _FeedScreenState extends State<FeedScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              content.length > 150 
-                  ? '${content.substring(0, 150)}...' 
+              content.length > 150
+                  ? '${content.substring(0, 150)}...'
                   : content,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textMuted,
-              ),
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -630,7 +824,10 @@ class _FeedScreenState extends State<FeedScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.amberSurface,
                     border: Border.all(color: AppColors.amberBorder),
@@ -646,7 +843,11 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.visibility, size: 12, color: AppColors.textSubtle),
+                const Icon(
+                  Icons.visibility,
+                  size: 12,
+                  color: AppColors.textSubtle,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '$views',
@@ -665,7 +866,90 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildReactionButton(
+                  icon: Icons.thumb_up_alt_outlined,
+                  activeIcon: Icons.thumb_up_alt,
+                  count: likesCount,
+                  isActive: userReaction == 1,
+                  activeColor: AppColors.success,
+                  onTap: onLike,
+                ),
+                const SizedBox(width: 8),
+                _buildReactionButton(
+                  icon: Icons.thumb_down_alt_outlined,
+                  activeIcon: Icons.thumb_down_alt,
+                  count: dislikesCount,
+                  isActive: userReaction == -1,
+                  activeColor: AppColors.errorDark,
+                  onTap: onDislike,
+                ),
+              ],
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownShell({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.slatePrimary),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildReactionButton({
+    required IconData icon,
+    required IconData activeIcon,
+    required int count,
+    required bool isActive,
+    required Color activeColor,
+    required VoidCallback onTap,
+  }) {
+    final color = isActive ? activeColor : AppColors.textMuted;
+    final backgroundColor = isActive
+        ? activeColor.withValues(alpha: 0.12)
+        : AppColors.surfaceLight;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            border: Border.all(
+              color: isActive
+                  ? activeColor.withValues(alpha: 0.3)
+                  : AppColors.border,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(isActive ? activeIcon : icon, size: 16, color: color),
+              const SizedBox(width: 6),
+              Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
