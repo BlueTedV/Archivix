@@ -8,7 +8,8 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: 'https://lbgqtschsdurqwutsmyl.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZ3F0c2Noc2R1cnF3dXRzbXlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MDA3MjQsImV4cCI6MjA4NjI3NjcyNH0.2RIwCPqFhiOQgBouAGgOK_TPyWmIxQQv_JpKsJYJ5MM',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZ3F0c2Noc2R1cnF3dXRzbXlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MDA3MjQsImV4cCI6MjA4NjI3NjcyNH0.2RIwCPqFhiOQgBouAGgOK_TPyWmIxQQv_JpKsJYJ5MM',
   );
 
   runApp(const MyApp());
@@ -17,7 +18,7 @@ Future<void> main() async {
 final supabase = Supabase.instance.client;
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +30,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blueGrey,
         primaryColor: const Color(0xFF4A5568),
         scaffoldBackgroundColor: const Color(0xFFE8E8E8),
-        
+
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF4A5568),
           elevation: 2,
@@ -39,7 +40,7 @@ class MyApp extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
-        
+
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF4A5568),
@@ -51,7 +52,7 @@ class MyApp extends StatelessWidget {
             elevation: 2,
           ),
         ),
-        
+
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
@@ -67,9 +68,12 @@ class MyApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             borderSide: const BorderSide(color: Color(0xFF4A5568), width: 2),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 14,
+          ),
         ),
-        
+
         cardTheme: const CardThemeData(
           color: Colors.white,
           elevation: 1,
@@ -79,8 +83,8 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: supabase.auth.currentSession != null 
-          ? const HomeScreen() 
+      home: supabase.auth.currentSession != null
+          ? const HomeScreen()
           : const LoginScreen(),
     );
   }

@@ -6,6 +6,8 @@ import 'auth/login_screen.dart';
 import 'papers/paper_detail_screen.dart';
 import 'posts/post_detail_screen.dart';
 
+enum _HistoryFilter { all, papers, posts }
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -15,9 +17,11 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final supabase = Supabase.instance.client;
+
   bool _isLoadingHistory = true;
   String? _historyError;
-  String _historyFilter = 'all';
+  _HistoryFilter _historyFilter = _HistoryFilter.all;
+
   List<Map<String, dynamic>> _userPapers = [];
   List<Map<String, dynamic>> _userPosts = [];
   List<Map<String, dynamic>> _historyItems = [];
@@ -32,15 +36,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final userId = supabase.auth.currentUser?.id;
 
     if (userId == null) {
-      if (mounted) {
-        setState(() {
-          _isLoadingHistory = false;
-          _historyError = 'User not authenticated.';
-          _userPapers = [];
-          _userPosts = [];
-          _historyItems = [];
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _isLoadingHistory = false;
+        _historyError = 'User not authenticated.';
+        _userPapers = [];
+        _userPosts = [];
+        _historyItems = [];
+      });
       return;
     }
 
@@ -50,417 +53,251 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
-      final papersResponse = await supabase
-          .from('papers')
-          .select('''
-            id,
-            title,
-            abstract,
-            created_at,
-            views_count,
-            categories (name),
-            paper_authors (name)
-          ''')
-          .eq('user_id', userId)
-          .eq('status', 'published')
-          .order('created_at', ascending: false);
+      final responses = await Future.wait([
+        supabase
+            .from('papers')
+            .select('''
+              id,
+              title,
+              abstract,
+              created_at,
+              views_count,
+              categories (name),
+              paper_authors (name)
+            ''')
+            .eq('user_id', userId)
+            .eq('status', 'published')
+            .order('created_at', ascending: false),
+        supabase
+            .from('posts')
+            .select('''
+              id,
+              title,
+              content,
+              created_at,
+              views_count,
+              categories (name)
+            ''')
+            .eq('user_id', userId)
+            .order('created_at', ascending: false),
+      ]);
 
-      final postsResponse = await supabase
-          .from('posts')
-          .select('''
-            id,
-            title,
-            content,
-            created_at,
-            views_count,
-            categories (name)
-          ''')
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
-
-      final papers = List<Map<String, dynamic>>.from(papersResponse);
-      final posts = List<Map<String, dynamic>>.from(postsResponse);
+      final papers = List<Map<String, dynamic>>.from(
+        responses[0] as List<dynamic>,
+      );
+      final posts = List<Map<String, dynamic>>.from(
+        responses[1] as List<dynamic>,
+      );
 
       for (final paper in papers) {
         paper['content_type'] = 'paper';
       }
-
       for (final post in posts) {
         post['content_type'] = 'post';
       }
 
-      final combined = [...papers, ...posts];
-      combined.sort((a, b) {
-        final aDate = DateTime.tryParse('${a['created_at']}') ?? DateTime(1970);
-        final bDate = DateTime.tryParse('${b['created_at']}') ?? DateTime(1970);
-        return bDate.compareTo(aDate);
+      final combined = [...papers, ...posts]
+        ..sort((a, b) {
+          final aDate =
+              DateTime.tryParse('${a['created_at']}') ?? DateTime(1970);
+          final bDate =
+              DateTime.tryParse('${b['created_at']}') ?? DateTime(1970);
+          return bDate.compareTo(aDate);
+        });
+
+      if (!mounted) return;
+      setState(() {
+        _userPapers = papers;
+        _userPosts = posts;
+        _historyItems = combined;
+        _isLoadingHistory = false;
       });
-
-      if (mounted) {
-        setState(() {
-          _userPapers = papers;
-          _userPosts = posts;
-          _historyItems = combined;
-          _isLoadingHistory = false;
-        });
-      }
     } catch (error) {
-      if (mounted) {
-        setState(() {
-          _historyError = error.toString();
-          _isLoadingHistory = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _historyError = error.toString();
+        _isLoadingHistory = false;
+      });
     }
-  }
-
-  void _showChangePasswordDialog() {
-    final currentPasswordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool isLoading = false;
-    final navigator = Navigator.of(context);
-
-    Future<void> dismissDialogSafely(BuildContext dialogContext) async {
-      FocusManager.instance.primaryFocus?.unfocus();
-      await Future<void>.delayed(const Duration(milliseconds: 16));
-
-      if (dialogContext.mounted && navigator.canPop()) {
-        navigator.pop();
-      }
-    }
-
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (_, setDialogState) => AlertDialog(
-          title: const Text(
-            'Change Password',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Current Password',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: currentPasswordController,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter current password',
-                    hintStyle: TextStyle(fontSize: 13),
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                  ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Required';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'New Password',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: newPasswordController,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter new password',
-                    hintStyle: TextStyle(fontSize: 13),
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                  ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Required';
-                    if (value.length < 6) return 'Must be at least 6 characters';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Confirm New Password',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: confirmPasswordController,
-                  decoration: const InputDecoration(
-                    hintText: 'Confirm new password',
-                    hintStyle: TextStyle(fontSize: 13),
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                  ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Required';
-                    if (value != newPasswordController.text) {
-                      return 'Passwords don\'t match';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
-            side: const BorderSide(color: AppColors.border),
-          ),
-          actions: [
-            TextButton(
-              onPressed: isLoading
-                  ? null
-                  : () async => dismissDialogSafely(dialogContext),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: AppColors.textMuted),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) return;
-
-                      setDialogState(() => isLoading = true);
-
-                      try {
-                        final email = supabase.auth.currentUser?.email;
-                        if (email == null) throw Exception('User not logged in');
-
-                        await supabase.auth.signInWithPassword(
-                          email: email,
-                          password: currentPasswordController.text,
-                        );
-
-                        await supabase.auth.updateUser(
-                          UserAttributes(password: newPasswordController.text),
-                        );
-
-                        if (mounted && dialogContext.mounted) {
-                          await dismissDialogSafely(dialogContext);
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Password changed successfully!'),
-                              backgroundColor: AppColors.success,
-                            ),
-                          );
-                        }
-                      } on AuthException catch (error) {
-                        if (mounted) {
-                          setDialogState(() => isLoading = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(error.message),
-                              backgroundColor: AppColors.errorDark,
-                            ),
-                          );
-                        }
-                      } catch (error) {
-                        if (mounted) {
-                          setDialogState(() => isLoading = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error: ${error.toString()}'),
-                              backgroundColor: AppColors.errorDark,
-                            ),
-                          );
-                        }
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.slatePrimary,
-              ),
-              child: isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Text('Change Password'),
-            ),
-          ],
-        ),
-      ),
-    ).whenComplete(() {
-      currentPasswordController.dispose();
-      newPasswordController.dispose();
-      confirmPasswordController.dispose();
-    });
   }
 
   Future<void> _signOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Sign Out',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: const Text('Are you sure you want to sign out?'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textMuted),
-            ),
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+            side: const BorderSide(color: AppColors.border),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              'Sign Out',
-              style: TextStyle(color: AppColors.errorDark),
-            ),
+          title: const Text(
+            'Sign Out',
+            style: TextStyle(fontWeight: FontWeight.w700),
           ),
-        ],
-      ),
+          content: const Text('Are you sure you want to sign out?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                'Sign Out',
+                style: TextStyle(color: AppColors.errorDark),
+              ),
+            ),
+          ],
+        );
+      },
     );
 
-    if (confirmed == true) {
-      await supabase.auth.signOut();
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
-    }
+    if (confirmed != true) return;
+
+    await supabase.auth.signOut();
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+  }
+
+  void _showMessage(String message, Color backgroundColor) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showNotReadyMessage(String label) {
+    _showMessage('$label is not implemented yet.', AppColors.slatePrimary);
   }
 
   List<Map<String, dynamic>> get _filteredHistoryItems {
-    if (_historyFilter == 'papers') {
-      return _historyItems
-          .where((item) => item['content_type'] == 'paper')
-          .toList();
+    switch (_historyFilter) {
+      case _HistoryFilter.papers:
+        return _historyItems
+            .where((item) => item['content_type'] == 'paper')
+            .toList();
+      case _HistoryFilter.posts:
+        return _historyItems
+            .where((item) => item['content_type'] == 'post')
+            .toList();
+      case _HistoryFilter.all:
+        return _historyItems;
     }
-    if (_historyFilter == 'posts') {
-      return _historyItems
-          .where((item) => item['content_type'] == 'post')
-          .toList();
-    }
-    return _historyItems;
+  }
+
+  int get _totalViews {
+    return _historyItems.fold<int>(
+      0,
+      (sum, item) => sum + ((item['views_count'] as int?) ?? 0),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final user = supabase.auth.currentUser;
-    final visibleHistory = _filteredHistoryItems;
-    final historyPanelHeight = (MediaQuery.of(context).size.height * 0.4).clamp(
-      240.0,
-      380.0,
-    );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile & Settings'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, size: 20),
             onPressed: _loadUserHistory,
-            tooltip: 'Refresh history',
+            tooltip: 'Refresh activity',
+            icon: const Icon(Icons.refresh, size: 20),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadUserHistory,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            _buildProfileConsole(user: user),
-            const SizedBox(height: 20),
-            _buildHistoryWorkbench(
-              visibleHistory: visibleHistory,
-              historyPanelHeight: historyPanelHeight.toDouble(),
-            ),
-            const SizedBox(height: 20),
-            _buildSettingsWorkbench(),
-            const SizedBox(height: 20),
-            _buildSessionWorkbench(user),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 900;
+            final historyHeight = isCompact ? 430.0 : 360.0;
+
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: [
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1120),
+                    child: Column(
+                      children: [
+                        _buildRetroOverview(
+                          user: user,
+                          isCompact: isCompact,
+                        ),
+                        const SizedBox(height: 18),
+                        _buildActivityCenter(
+                          visibleHistory: _filteredHistoryItems,
+                          historyPanelHeight: historyHeight,
+                        ),
+                        const SizedBox(height: 18),
+                        _buildPreferencesCenter(),
+                        const SizedBox(height: 18),
+                        _buildSessionPanel(user),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildProfileConsole({required User? user}) {
-    return _buildDesktopPanel(
+  Widget _buildRetroOverview({
+    required User? user,
+    required bool isCompact,
+  }) {
+    final identityPanel = _buildIdentityPanel(user: user);
+    final summaryPanel = _buildSummaryPanel(
+      user: user,
+      isCompact: isCompact,
+    );
+
+    return _buildWindowPanel(
       title: 'PROFILE CONSOLE',
-      subtitle: 'Identity, activity totals, and quick commands',
+      subtitle: 'Identity, activity totals, and quick controls',
       icon: Icons.person_outline,
       accentColor: AppColors.slatePrimary,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isCompact = constraints.maxWidth < 760;
-          final identityCard = _buildIdentityCard(user: user);
-          final workspaceCard = _buildWorkspaceOverview();
-
-          if (isCompact) {
-            return Column(
+      child: isCompact
+          ? Column(
               children: [
-                identityCard,
+                identityPanel,
                 const SizedBox(height: 12),
-                workspaceCard,
+                summaryPanel,
               ],
-            );
-          }
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(width: 300, child: identityCard),
-              const SizedBox(width: 12),
-              Expanded(child: workspaceCard),
-            ],
-          );
-        },
-      ),
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: 310, child: identityPanel),
+                const SizedBox(width: 12),
+                Expanded(child: summaryPanel),
+              ],
+            ),
     );
   }
 
-  Widget _buildIdentityCard({required User? user}) {
+  Widget _buildIdentityPanel({required User? user}) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE6EAF0),
-        border: Border.all(color: const Color(0xFFB5BBC6)),
-        borderRadius: BorderRadius.circular(4),
+      decoration: _innerPanelDecoration(
+        backgroundColor: const Color(0xFFE1E6EE),
+        borderColor: const Color(0xFFAEB7C4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,20 +306,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 72,
-                height: 72,
+                width: 74,
+                height: 74,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [AppColors.slatePrimary, Color(0xFF66758D)],
+                    colors: [AppColors.slatePrimary, Color(0xFF73829B)],
                   ),
-                  border: Border.all(color: const Color(0xFF364152)),
+                  border: Border.all(color: const Color(0xFF3F4857)),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Icon(
                   Icons.person_2_outlined,
-                  size: 36,
+                  size: 38,
                   color: Colors.white,
                 ),
               ),
@@ -523,40 +360,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'User ID',
             user == null ? 'Unavailable' : '${user.id.substring(0, 8)}...',
           ),
+          const SizedBox(height: 8),
+          _buildFactRow('Mailbox', user?.email ?? 'No email on record'),
         ],
       ),
     );
   }
 
-  Widget _buildWorkspaceOverview() {
+  Widget _buildSummaryPanel({
+    required User? user,
+    required bool isCompact,
+  }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
           spacing: 10,
           runSpacing: 10,
           children: [
-            SizedBox(
-              width: 180,
-              child: _buildStatCard(
-                label: 'DOCUMENTS',
-                value: _userPapers.length.toString(),
-                icon: Icons.description_outlined,
-                backgroundColor: Colors.white,
-                borderColor: AppColors.border,
-                accentColor: AppColors.slatePrimary,
-              ),
+            _buildStatCard(
+              width: isCompact ? double.infinity : 180,
+              label: 'DOCUMENTS',
+              value: _userPapers.length.toString(),
+              icon: Icons.description_outlined,
+              backgroundColor: Colors.white,
+              borderColor: AppColors.border,
+              accentColor: AppColors.slatePrimary,
             ),
-            SizedBox(
-              width: 180,
-              child: _buildStatCard(
-                label: 'QUESTIONS',
-                value: _userPosts.length.toString(),
-                icon: Icons.question_answer_outlined,
-                backgroundColor: AppColors.amberCardBg,
-                borderColor: AppColors.amberBorder,
-                accentColor: AppColors.amberDark,
-              ),
+            _buildStatCard(
+              width: isCompact ? double.infinity : 180,
+              label: 'QUESTIONS',
+              value: _userPosts.length.toString(),
+              icon: Icons.question_answer_outlined,
+              backgroundColor: AppColors.amberCardBg,
+              borderColor: AppColors.amberBorder,
+              accentColor: AppColors.amberDark,
+            ),
+            _buildStatCard(
+              width: isCompact ? double.infinity : 180,
+              label: 'TOTAL VIEWS',
+              value: _totalViews.toString(),
+              icon: Icons.visibility_outlined,
+              backgroundColor: const Color(0xFFE9EFF7),
+              borderColor: const Color(0xFFB9C6D8),
+              accentColor: AppColors.slatePrimary,
             ),
           ],
         ),
@@ -564,10 +410,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: const Color(0xFFB5BBC6)),
-            borderRadius: BorderRadius.circular(4),
+          decoration: _innerPanelDecoration(
+            backgroundColor: Colors.white,
+            borderColor: const Color(0xFFB5BBC6),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -590,8 +435,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.refresh,
                     label: 'Refresh Activity',
                     onPressed: _loadUserHistory,
-                    filled: true,
                     color: AppColors.slatePrimary,
+                    filled: true,
                   ),
                   _buildCommandButton(
                     icon: Icons.lock_outline,
@@ -599,8 +444,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onPressed: _showChangePasswordDialog,
                     color: AppColors.slatePrimary,
                   ),
+                  _buildCommandButton(
+                    icon: Icons.help_outline,
+                    label: 'Help',
+                    onPressed: () => _showNotReadyMessage('Help & Support'),
+                    color: AppColors.textSecondary,
+                  ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _buildFactRow('Joined', _formatDate(user?.createdAt)),
             ],
           ),
         ),
@@ -608,16 +461,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildHistoryWorkbench({
+  Widget _buildActivityCenter({
     required List<Map<String, dynamic>> visibleHistory,
     required double historyPanelHeight,
   }) {
-    return _buildDesktopPanel(
+    return _buildWindowPanel(
       title: 'ACTIVITY LEDGER',
       subtitle: 'Published documents and posted questions',
       icon: Icons.history,
       accentColor: AppColors.slatePrimary,
-      trailing: _buildHistoryFilterControl(),
+      trailing: _buildHistoryFilterBar(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -631,23 +484,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: '${visibleHistory.length} items',
               ),
               _buildInfoBadge(
-                icon: Icons.swap_vert,
-                label: 'Filter',
-                value: _historyFilter == 'all'
-                    ? 'All activity'
-                    : _historyFilter == 'papers'
-                        ? 'Documents only'
-                        : 'Questions only',
+                icon: Icons.filter_alt_outlined,
+                label: 'Mode',
+                value: _historyFilterLabel(_historyFilter),
+              ),
+              _buildInfoBadge(
+                icon: Icons.stacked_line_chart,
+                label: 'Lifetime',
+                value: '${_historyItems.length} records',
               ),
             ],
           ),
           const SizedBox(height: 12),
           Container(
             height: historyPanelHeight,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFB5BBC6)),
-              borderRadius: BorderRadius.circular(4),
+            decoration: _innerPanelDecoration(
+              backgroundColor: Colors.white,
+              borderColor: const Color(0xFFB5BBC6),
             ),
             child: _buildHistoryPanel(visibleHistory),
           ),
@@ -656,8 +509,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSettingsWorkbench() {
-    return _buildDesktopPanel(
+  Widget _buildPreferencesCenter() {
+    return _buildWindowPanel(
       title: 'SETTINGS DRAWER',
       subtitle: 'Preferences, security, and support',
       icon: Icons.tune,
@@ -667,58 +520,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSettingItem(
             icon: Icons.notifications_outlined,
             title: 'Notifications',
-            subtitle: 'Configure notification preferences',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Notification settings not yet implemented'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            subtitle: 'Configure your notification preferences',
+            accentColor: AppColors.slatePrimary,
+            onTap: () => _showNotReadyMessage('Notifications'),
           ),
           const SizedBox(height: 10),
           _buildSettingItem(
             icon: Icons.lock_outline,
-            title: 'Change Password',
+            title: 'Password',
             subtitle: 'Update your account password',
+            accentColor: AppColors.slatePrimary,
             onTap: _showChangePasswordDialog,
           ),
           const SizedBox(height: 10),
           _buildSettingItem(
             icon: Icons.privacy_tip_outlined,
             title: 'Privacy',
-            subtitle: 'Manage your privacy settings',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Privacy settings not yet implemented'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            subtitle: 'Manage privacy and visibility controls',
+            accentColor: AppColors.slatePrimary,
+            onTap: () => _showNotReadyMessage('Privacy settings'),
           ),
           const SizedBox(height: 10),
           _buildSettingItem(
             icon: Icons.help_outline,
             title: 'Help & Support',
-            subtitle: 'Get help and contact support',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Help & Support not yet implemented'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            subtitle: 'Find guidance and contact support',
+            accentColor: AppColors.slatePrimary,
+            onTap: () => _showNotReadyMessage('Help & Support'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSessionWorkbench(User? user) {
-    return _buildDesktopPanel(
+  Widget _buildSessionPanel(User? user) {
+    return _buildWindowPanel(
       title: 'SESSION',
       subtitle: 'Current sign-in and account controls',
       icon: Icons.logout,
@@ -726,10 +562,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF7F7F4),
-          border: Border.all(color: const Color(0xFFB5BBC6)),
-          borderRadius: BorderRadius.circular(4),
+        decoration: _innerPanelDecoration(
+          backgroundColor: const Color(0xFFF7F7F4),
+          borderColor: const Color(0xFFB5BBC6),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -747,7 +582,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
+            _buildFactRow(
+              'User ID',
+              user == null ? 'Unavailable' : '${user.id.substring(0, 8)}...',
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               height: 42,
@@ -770,9 +610,209 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showChangePasswordDialog() {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var isLoading = false;
+    final navigator = Navigator.of(context);
+
+    Future<void> dismissDialogSafely(BuildContext dialogContext) async {
+      FocusManager.instance.primaryFocus?.unfocus();
+      await Future<void>.delayed(const Duration(milliseconds: 16));
+
+      if (dialogContext.mounted && navigator.canPop()) {
+        navigator.pop();
+      }
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (_, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+                side: const BorderSide(color: AppColors.border),
+              ),
+              titlePadding: EdgeInsets.zero,
+              title: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.slatePrimary, Color(0xFF66758D)],
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.lock_outline, size: 18, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      'Change Password',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDialogFieldLabel('Current Password'),
+                    TextFormField(
+                      controller: currentPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter current password',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Required';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _buildDialogFieldLabel('New Password'),
+                    TextFormField(
+                      controller: newPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter new password',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Required';
+                        if (value.length < 6) {
+                          return 'Must be at least 6 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _buildDialogFieldLabel('Confirm New Password'),
+                    TextFormField(
+                      controller: confirmPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Confirm new password',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Required';
+                        if (value != newPasswordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async => dismissDialogSafely(dialogContext),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: AppColors.textMuted),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+
+                          setDialogState(() => isLoading = true);
+
+                          try {
+                            final email = supabase.auth.currentUser?.email;
+                            if (email == null) {
+                              throw Exception('User not logged in');
+                            }
+
+                            await supabase.auth.signInWithPassword(
+                              email: email,
+                              password: currentPasswordController.text,
+                            );
+
+                            await supabase.auth.updateUser(
+                              UserAttributes(
+                                password: newPasswordController.text,
+                              ),
+                            );
+
+                            if (!mounted || !dialogContext.mounted) return;
+                            await dismissDialogSafely(dialogContext);
+                            if (!mounted) return;
+                            _showMessage(
+                              'Password changed successfully!',
+                              AppColors.success,
+                            );
+                          } on AuthException catch (error) {
+                            if (!mounted) return;
+                            _showMessage(error.message, AppColors.errorDark);
+                            setDialogState(() => isLoading = false);
+                          } catch (error) {
+                            if (!mounted) return;
+                            _showMessage(
+                              'Error: ${error.toString()}',
+                              AppColors.errorDark,
+                            );
+                            setDialogState(() => isLoading = false);
+                          }
+                        },
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : const Text('Save Password'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      currentPasswordController.dispose();
+      newPasswordController.dispose();
+      confirmPasswordController.dispose();
+    });
+  }
+
   // ─── Shared panel / UI components ────────────────────────────────────────
 
-  Widget _buildDesktopPanel({
+  Widget _buildWindowPanel({
     required String title,
     required String subtitle,
     required IconData icon,
@@ -783,18 +823,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFF7F8794)),
+        border: Border.all(color: const Color(0xFF7E8794)),
         borderRadius: BorderRadius.circular(4),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.white.withValues(alpha: 0.7),
+            color: Color(0x1F000000),
             blurRadius: 0,
-            offset: const Offset(-1, -1),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 0,
-            offset: const Offset(2, 2),
+            offset: Offset(2, 2),
           ),
         ],
       ),
@@ -809,11 +844,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [accentColor, accentColor.withValues(alpha: 0.82)],
+                  colors: [accentColor, accentColor.withOpacity(0.84)],
                 ),
                 border: Border(
                   bottom: BorderSide(
-                    color: Colors.black.withValues(alpha: 0.15),
+                    color: Colors.black.withOpacity(0.18),
                   ),
                 ),
               ),
@@ -839,7 +874,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.85),
+                            color: Colors.white.withOpacity(0.88),
                           ),
                         ),
                       ],
@@ -852,7 +887,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              color: const Color(0xFFF0F0EE),
+              color: const Color(0xFFECECE7),
               child: child,
             ),
           ],
@@ -861,37 +896,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildHistoryFilterControl() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.95),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.65)),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _historyFilter,
-          isDense: true,
-          icon: const Icon(
-            Icons.filter_list,
-            size: 16,
-            color: AppColors.slatePrimary,
+  BoxDecoration _innerPanelDecoration({
+    required Color backgroundColor,
+    required Color borderColor,
+  }) {
+    return BoxDecoration(
+      color: backgroundColor,
+      border: Border.all(color: borderColor),
+      borderRadius: BorderRadius.circular(4),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x14FFFFFF),
+          blurRadius: 0,
+          offset: Offset(-1, -1),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryFilterBar() {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        _buildFilterTab(
+          label: 'All',
+          selected: _historyFilter == _HistoryFilter.all,
+          onTap: () => setState(() => _historyFilter = _HistoryFilter.all),
+        ),
+        _buildFilterTab(
+          label: 'Documents',
+          selected: _historyFilter == _HistoryFilter.papers,
+          onTap: () => setState(() => _historyFilter = _HistoryFilter.papers),
+        ),
+        _buildFilterTab(
+          label: 'Questions',
+          selected: _historyFilter == _HistoryFilter.posts,
+          onTap: () => setState(() => _historyFilter = _HistoryFilter.posts),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterTab({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : const Color(0xFFD7DCE4),
+          border: Border.all(
+            color: selected ? Colors.white : const Color(0xFF98A3B1),
           ),
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: selected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x1FFFFFFF),
+                    blurRadius: 0,
+                    offset: Offset(-1, -1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
             fontWeight: FontWeight.w700,
+            color: selected ? AppColors.slatePrimary : AppColors.textSecondary,
           ),
-          items: const [
-            DropdownMenuItem(value: 'all', child: Text('All')),
-            DropdownMenuItem(value: 'papers', child: Text('Documents')),
-            DropdownMenuItem(value: 'posts', child: Text('Questions')),
-          ],
-          onChanged: (value) {
-            if (value == null) return;
-            setState(() => _historyFilter = value);
-          },
         ),
       ),
     );
@@ -904,10 +983,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFB5BBC6)),
-        borderRadius: BorderRadius.circular(4),
+      decoration: _innerPanelDecoration(
+        backgroundColor: Colors.white,
+        borderColor: const Color(0xFFB5BBC6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -956,12 +1034,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         icon: Icon(icon, size: 16),
         label: Text(label),
         style: OutlinedButton.styleFrom(
-          backgroundColor: filled ? color : Colors.white,
           foregroundColor: filled ? Colors.white : color,
+          backgroundColor: filled ? color : Colors.white,
           side: BorderSide(color: color),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
         ),
       ),
@@ -972,10 +1048,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
-        border: Border.all(color: const Color(0xFFD0D4DB)),
-        borderRadius: BorderRadius.circular(4),
+      decoration: _innerPanelDecoration(
+        backgroundColor: Colors.white.withOpacity(0.88),
+        borderColor: const Color(0xFFD0D4DB),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1007,10 +1082,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildDialogFieldLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textMuted,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSettingItem({
     required IconData icon,
     required String title,
     required String subtitle,
+    required Color accentColor,
     required VoidCallback onTap,
   }) {
     return Material(
@@ -1020,10 +1110,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.circular(4),
         child: Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: const Color(0xFFB5BBC6)),
-            borderRadius: BorderRadius.circular(4),
+          decoration: _innerPanelDecoration(
+            backgroundColor: Colors.white,
+            borderColor: const Color(0xFFB5BBC6),
           ),
           child: Row(
             children: [
@@ -1031,11 +1120,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE7EBF1),
-                  border: Border.all(color: const Color(0xFFB5BBC6)),
+                  color: accentColor.withOpacity(0.1),
+                  border: Border.all(color: accentColor.withOpacity(0.3)),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Icon(icon, color: AppColors.slatePrimary),
+                child: Icon(icon, color: accentColor),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1078,7 +1167,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_isLoadingHistory) {
       return const Center(
         child: Padding(
-          padding: EdgeInsets.all(32.0),
+          padding: EdgeInsets.all(32),
           child: CircularProgressIndicator(),
         ),
       );
@@ -1180,24 +1269,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildEmptyHistoryState() {
-    final title = _historyFilter == 'papers'
-        ? 'No documents yet'
-        : _historyFilter == 'posts'
-            ? 'No questions yet'
-            : 'No history yet';
+    final title = switch (_historyFilter) {
+      _HistoryFilter.papers => 'No documents yet',
+      _HistoryFilter.posts => 'No questions yet',
+      _HistoryFilter.all => 'No history yet',
+    };
 
-    final subtitle = _historyFilter == 'papers'
-        ? 'Documents you publish will appear here.'
-        : _historyFilter == 'posts'
-            ? 'Questions you post will appear here.'
-            : 'Your published documents and posted questions will appear here.';
+    final subtitle = switch (_historyFilter) {
+      _HistoryFilter.papers => 'Documents you publish will appear here.',
+      _HistoryFilter.posts => 'Questions you post will appear here.',
+      _HistoryFilter.all =>
+        'Your published documents and posted questions will appear here.',
+    };
 
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(4),
+      decoration: _innerPanelDecoration(
+        backgroundColor: Colors.white,
+        borderColor: AppColors.border,
       ),
       child: Column(
         children: [
@@ -1223,6 +1312,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildStatCard({
+    required double width,
     required String label,
     required String value,
     required IconData icon,
@@ -1230,51 +1320,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required Color borderColor,
     required Color accentColor,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        border: Border.all(color: borderColor),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: borderColor),
-              borderRadius: BorderRadius.circular(4),
+    return SizedBox(
+      width: width.isFinite ? width : null,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: _innerPanelDecoration(
+          backgroundColor: backgroundColor,
+          borderColor: borderColor,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: borderColor),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Icon(icon, size: 18, color: accentColor),
             ),
-            child: Icon(icon, size: 18, color: accentColor),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: accentColor,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: accentColor,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1301,10 +1393,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(4),
+        decoration: _innerPanelDecoration(
+          backgroundColor: Colors.white,
+          borderColor: AppColors.border,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1321,7 +1412,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Document',
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.slatePrimary,
                     letterSpacing: 0.5,
                   ),
@@ -1333,7 +1424,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title,
               style: const TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
@@ -1344,35 +1435,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              preview.length > 150 ? '${preview.substring(0, 150)}...' : preview,
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              preview.length > 150
+                  ? '${preview.substring(0, 150)}...'
+                  : preview,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    border: Border.all(color: AppColors.border),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Text(
-                    category,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.slatePrimary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                _buildMetaTag(
+                  label: category,
+                  textColor: AppColors.slatePrimary,
+                  backgroundColor: AppColors.surfaceLight,
+                  borderColor: AppColors.border,
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.visibility, size: 12, color: AppColors.textSubtle),
+                const Icon(
+                  Icons.visibility,
+                  size: 12,
+                  color: AppColors.textSubtle,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '$views',
@@ -1415,10 +1499,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.amberCardBg,
-          border: Border.all(color: AppColors.amberBorder),
-          borderRadius: BorderRadius.circular(4),
+        decoration: _innerPanelDecoration(
+          backgroundColor: AppColors.amberCardBg,
+          borderColor: AppColors.amberBorder,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1435,7 +1518,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Question',
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.amberDark,
                     letterSpacing: 0.5,
                   ),
@@ -1447,41 +1530,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title,
               style: const TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              preview.length > 150 ? '${preview.substring(0, 150)}...' : preview,
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              preview.length > 150
+                  ? '${preview.substring(0, 150)}...'
+                  : preview,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.amberSurface,
-                    border: Border.all(color: AppColors.amberBorder),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Text(
-                    category,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.amberDark,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                _buildMetaTag(
+                  label: category,
+                  textColor: AppColors.amberDark,
+                  backgroundColor: AppColors.amberSurface,
+                  borderColor: AppColors.amberBorder,
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.visibility, size: 12, color: AppColors.textSubtle),
+                const Icon(
+                  Icons.visibility,
+                  size: 12,
+                  color: AppColors.textSubtle,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '$views',
@@ -1506,6 +1582,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildMetaTag({
+    required String label,
+    required Color textColor,
+    required Color backgroundColor,
+    required Color borderColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: textColor,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  String _historyFilterLabel(_HistoryFilter filter) {
+    switch (filter) {
+      case _HistoryFilter.all:
+        return 'All activity';
+      case _HistoryFilter.papers:
+        return 'Documents only';
+      case _HistoryFilter.posts:
+        return 'Questions only';
+    }
+  }
+
   String _getAuthors(List<dynamic>? authors) {
     if (authors == null || authors.isEmpty) return 'Unknown Author';
     final names = authors
@@ -1526,7 +1637,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (difference.inDays == 1) return 'Yesterday';
       if (difference.inDays < 7) return '${difference.inDays} days ago';
       return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
+    } catch (_) {
       return 'Unknown';
     }
   }
@@ -1536,7 +1647,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final date = DateTime.parse(dateString);
       return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
+    } catch (_) {
       return 'Unknown';
     }
   }

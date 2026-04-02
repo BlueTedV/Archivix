@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'feed/feed_screen.dart';
 import 'search_screen.dart';
 import 'submit_screen_tabs.dart';
-import 'settings_screen.dart';
+import 'profile_settings_screen.dart';
 import '../../core/constants/app_colors.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -15,16 +14,16 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  
+
   void _navigateToSettings() {
     setState(() {
       _currentIndex = 3; // Settings tab index
     });
   }
-  
+
   @override
   Widget build(BuildContext context) {
-    final List<Widget> _screens = [
+    final List<Widget> screens = [
       FeedScreen(onNavigateToSettings: _navigateToSettings),
       const SearchScreen(),
       const SubmitScreen(),
@@ -32,12 +31,10 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: screens[_currentIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: AppColors.border, width: 1),
-          ),
+          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -54,22 +51,10 @@ class _HomeScreenState extends State<HomeScreen> {
           unselectedFontSize: 12,
           elevation: 8,
           items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.article),
-              label: 'Feed',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.search),
-              label: 'Search',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.add_box),
-              label: 'Submit',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: 'Profile',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Feed'),
+            BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+            BottomNavigationBarItem(icon: Icon(Icons.add_box), label: 'Submit'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           ],
         ),
       ),

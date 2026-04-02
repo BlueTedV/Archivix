@@ -6,7 +6,7 @@ import 'forgot_password_screen.dart';
 import '../../core/constants/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -90,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(4),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -132,13 +132,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           'Open Knowledge Repository',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  
+
                   // Form
                   Padding(
                     padding: const EdgeInsets.all(24.0),
@@ -164,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          
+
                           const Text(
                             'Email Address',
                             style: TextStyle(
@@ -192,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                           const SizedBox(height: 16),
-                          
+
                           const Text(
                             'Password',
                             style: TextStyle(
@@ -220,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                           const SizedBox(height: 8),
-                          
+
                           // Forgot Password link
                           Align(
                             alignment: Alignment.centerRight,
@@ -228,12 +228,16 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (_) => const ForgotPasswordScreen(),
+                                    builder: (_) =>
+                                        const ForgotPasswordScreen(),
                                   ),
                                 );
                               },
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 minimumSize: Size.zero,
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
@@ -248,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          
+
                           SizedBox(
                             width: double.infinity,
                             height: 42,
@@ -259,9 +263,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                       height: 24,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(
-                                          AppColors.slatePrimary,
-                                        ),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              AppColors.slatePrimary,
+                                            ),
                                       ),
                                     ),
                                   )
@@ -277,14 +282,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                           ),
                           const SizedBox(height: 16),
-                          
+
                           Container(
                             width: double.infinity,
                             height: 1,
                             color: AppColors.border,
                           ),
                           const SizedBox(height: 16),
-                          
+
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -305,9 +310,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   );
                                 },
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 child: const Text(
                                   'Create Account',

@@ -3,12 +3,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:path/path.dart' as path;
 import '../../core/constants/app_colors.dart';
 
 class SubmitPostTab extends StatefulWidget {
-  const SubmitPostTab({Key? key}) : super(key: key);
+  const SubmitPostTab({super.key});
 
   @override
   State<SubmitPostTab> createState() => _SubmitPostTabState();
@@ -18,43 +17,43 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  
+
   String? _selectedCategoryId;
   List<Map<String, dynamic>> _categories = [];
-  
+
   // Multiple file attachments
-  List<PlatformFile> _attachments = [];
-  
+  final List<PlatformFile> _attachments = [];
+
   bool _isLoadingCategories = true;
   bool _isUploading = false;
   double _uploadProgress = 0.0;
-  
+
   final supabase = Supabase.instance.client;
-  
+
   @override
   void initState() {
     super.initState();
     _loadCategories();
   }
-  
+
   @override
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadCategories() async {
     setState(() {
       _isLoadingCategories = true;
     });
-    
+
     try {
       final response = await supabase
           .from('categories')
           .select('id, name')
           .order('name');
-      
+
       setState(() {
         _categories = List<Map<String, dynamic>>.from(response);
         if (_categories.isNotEmpty) {
@@ -76,12 +75,22 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
       }
     }
   }
-  
+
   Future<void> _pickFiles() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'pdf', 'doc', 'docx'],
+        allowedExtensions: [
+          'jpg',
+          'jpeg',
+          'png',
+          'gif',
+          'mp4',
+          'mov',
+          'pdf',
+          'doc',
+          'docx',
+        ],
         allowMultiple: true,
         withData: kIsWeb,
       );
@@ -92,7 +101,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
         for (var file in result.files) {
           totalSize += file.size;
         }
-        
+
         if (totalSize > 100 * 1024 * 1024) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -104,7 +113,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
           }
           return;
         }
-        
+
         setState(() {
           _attachments.addAll(result.files);
         });
@@ -120,19 +129,19 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
       }
     }
   }
-  
+
   void _removeAttachment(int index) {
     setState(() {
       _attachments.removeAt(index);
     });
   }
-  
+
   String _getFileType(String? extension) {
     if (extension == null) return 'document';
-    
+
     final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     final videoExtensions = ['mp4', 'mov', 'avi', 'mkv'];
-    
+
     if (imageExtensions.contains(extension.toLowerCase())) {
       return 'image';
     } else if (videoExtensions.contains(extension.toLowerCase())) {
@@ -141,24 +150,24 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
       return 'document';
     }
   }
-  
+
   Future<void> _submitPost() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isUploading = true;
       _uploadProgress = 0.0;
     });
-    
+
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
-      
+
       // 1. Create post record
       setState(() {
         _uploadProgress = 0.2;
       });
-      
+
       final postResponse = await supabase
           .from('posts')
           .insert({
@@ -169,21 +178,22 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
           })
           .select()
           .single();
-      
+
       setState(() {
         _uploadProgress = 0.4;
       });
-      
+
       // 2. Upload attachments if any
       if (_attachments.isNotEmpty) {
         final postId = postResponse['id'];
-        
+
         for (int i = 0; i < _attachments.length; i++) {
           final file = _attachments[i];
           final fileExt = path.extension(file.name);
-          final fileName = '${DateTime.now().millisecondsSinceEpoch}_$i$fileExt';
+          final fileName =
+              '${DateTime.now().millisecondsSinceEpoch}_$i$fileExt';
           final filePath = '$userId/$fileName';
-          
+
           // Upload to storage
           if (kIsWeb) {
             await supabase.storage
@@ -195,7 +205,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 .from('post-attachments')
                 .upload(filePath, ioFile);
           }
-          
+
           // Create attachment record
           await supabase.from('post_attachments').insert({
             'post_id': postId,
@@ -205,17 +215,17 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
             'file_size': file.size,
             'mime_type': file.extension,
           });
-          
+
           setState(() {
             _uploadProgress = 0.4 + (0.5 * (i + 1) / _attachments.length);
           });
         }
       }
-      
+
       setState(() {
         _uploadProgress = 1.0;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -223,7 +233,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
             backgroundColor: AppColors.success,
           ),
         );
-        
+
         // Clear form
         _titleController.clear();
         _contentController.clear();
@@ -249,13 +259,11 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
       }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (_isLoadingCategories) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     return ListView(
@@ -276,14 +284,18 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 20, color: AppColors.slatePrimary),
+                    const Icon(
+                      Icons.info_outline,
+                      size: 20,
+                      color: AppColors.slatePrimary,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Ask research-related questions and get answers from the community. You can attach images, videos, or documents.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.slatePrimary.withOpacity(0.9),
+                          color: AppColors.slatePrimary.withValues(alpha: 0.9),
                         ),
                       ),
                     ),
@@ -291,7 +303,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Question Title
               const Text(
                 'Question Title',
@@ -307,7 +319,10 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 maxLength: 200,
                 decoration: InputDecoration(
                   hintText: 'e.g., How do I analyze RNA-seq data?',
-                  hintStyle: const TextStyle(color: AppColors.textSubtle, fontSize: 13),
+                  hintStyle: const TextStyle(
+                    color: AppColors.textSubtle,
+                    fontSize: 13,
+                  ),
                   counterText: '',
                   filled: true,
                   fillColor: Colors.white,
@@ -321,9 +336,15 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: AppColors.slatePrimary, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.slatePrimary,
+                      width: 2,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -336,7 +357,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // Question Content/Details
               const Text(
                 'Details',
@@ -353,7 +374,10 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 maxLength: 5000,
                 decoration: InputDecoration(
                   hintText: 'Provide more details about your question...',
-                  hintStyle: const TextStyle(color: AppColors.textSubtle, fontSize: 13),
+                  hintStyle: const TextStyle(
+                    color: AppColors.textSubtle,
+                    fontSize: 13,
+                  ),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -366,7 +390,10 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: AppColors.slatePrimary, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.slatePrimary,
+                      width: 2,
+                    ),
                   ),
                   contentPadding: const EdgeInsets.all(14),
                 ),
@@ -381,7 +408,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // Category
               const Text(
                 'Category',
@@ -393,7 +420,10 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
               ),
               const SizedBox(height: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   border: Border.all(color: AppColors.border),
@@ -420,7 +450,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Attachments section
               Row(
                 children: [
@@ -443,13 +473,10 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
               const SizedBox(height: 8),
               Text(
                 'Add images, videos, or documents to support your question',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textMuted,
-                ),
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
               ),
               const SizedBox(height: 12),
-              
+
               // Add attachment button
               OutlinedButton.icon(
                 onPressed: _pickFiles,
@@ -461,18 +488,23 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Display attachments
               if (_attachments.isNotEmpty) ...[
                 ...List.generate(_attachments.length, (index) {
                   final file = _attachments[index];
-                  final extension = path.extension(file.name).replaceAll('.', '');
+                  final extension = path
+                      .extension(file.name)
+                      .replaceAll('.', '');
                   final fileType = _getFileType(extension);
-                  
+
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(10),
@@ -488,8 +520,8 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                           fileType == 'image'
                               ? Icons.image
                               : fileType == 'video'
-                                  ? Icons.videocam
-                                  : Icons.insert_drive_file,
+                              ? Icons.videocam
+                              : Icons.insert_drive_file,
                           size: 24,
                           color: AppColors.slatePrimary,
                         ),
@@ -534,13 +566,15 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 }),
               ],
               const SizedBox(height: 24),
-              
+
               // Progress bar
               if (_isUploading) ...[
                 LinearProgressIndicator(
                   value: _uploadProgress,
                   backgroundColor: const Color(0xFFE5E7EB),
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.slatePrimary),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.slatePrimary,
+                  ),
                   minHeight: 8,
                 ),
                 const SizedBox(height: 12),
@@ -555,7 +589,7 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                 ),
                 const SizedBox(height: 16),
               ],
-              
+
               // Submit button
               SizedBox(
                 width: double.infinity,
@@ -574,7 +608,9 @@ class _SubmitPostTabState extends State<SubmitPostTab> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text(

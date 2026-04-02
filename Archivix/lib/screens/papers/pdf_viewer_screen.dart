@@ -8,11 +8,7 @@ class PdfViewerScreen extends StatefulWidget {
   final String pdfUrl;
   final String title;
 
-  const PdfViewerScreen({
-    Key? key,
-    required this.pdfUrl,
-    required this.title,
-  }) : super(key: key);
+  const PdfViewerScreen({super.key, required this.pdfUrl, required this.title});
 
   @override
   State<PdfViewerScreen> createState() => _PdfViewerScreenState();
@@ -43,7 +39,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       final document = await PdfDocument.openData(
         await _downloadPdf(widget.pdfUrl),
       );
-      
+
       if (mounted) {
         setState(() {
           _totalPages = document.pagesCount;
@@ -111,10 +107,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                   SizedBox(height: 16),
                   Text(
                     'Loading PDF...',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textMuted,
-                    ),
+                    style: TextStyle(fontSize: 14, color: AppColors.textMuted),
                   ),
                 ],
               ),
@@ -128,12 +121,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
               },
               builders: PdfViewPinchBuilders<DefaultBuilderOptions>(
                 options: const DefaultBuilderOptions(),
-                documentLoaderBuilder: (_) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-                pageLoaderBuilder: (_) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                documentLoaderBuilder: (_) =>
+                    const Center(child: CircularProgressIndicator()),
+                pageLoaderBuilder: (_) =>
+                    const Center(child: CircularProgressIndicator()),
                 errorBuilder: (_, error) => Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),

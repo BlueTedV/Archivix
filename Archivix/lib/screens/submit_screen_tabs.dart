@@ -3,13 +3,14 @@ import 'papers/submit_paper_tab.dart';
 import 'posts/submit_post_tab.dart';
 
 class SubmitScreen extends StatefulWidget {
-  const SubmitScreen({Key? key}) : super(key: key);
+  const SubmitScreen({super.key});
 
   @override
   State<SubmitScreen> createState() => _SubmitScreenState();
 }
 
-class _SubmitScreenState extends State<SubmitScreen> with SingleTickerProviderStateMixin {
+class _SubmitScreenState extends State<SubmitScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -33,6 +34,8 @@ class _SubmitScreenState extends State<SubmitScreen> with SingleTickerProviderSt
           controller: _tabController,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           labelStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -42,10 +45,7 @@ class _SubmitScreenState extends State<SubmitScreen> with SingleTickerProviderSt
             fontWeight: FontWeight.normal,
           ),
           tabs: const [
-            Tab(
-              icon: Icon(Icons.article, size: 20),
-              text: 'Submit Paper',
-            ),
+            Tab(icon: Icon(Icons.article, size: 20), text: 'Submit Paper'),
             Tab(
               icon: Icon(Icons.question_answer, size: 20),
               text: 'Ask Question',
@@ -55,10 +55,7 @@ class _SubmitScreenState extends State<SubmitScreen> with SingleTickerProviderSt
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          SubmitPaperTab(),
-          SubmitPostTab(),
-        ],
+        children: const [SubmitPaperTab(), SubmitPostTab()],
       ),
     );
   }

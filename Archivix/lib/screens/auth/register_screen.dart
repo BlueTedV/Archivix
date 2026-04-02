@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+  const RegisterScreen({super.key});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -26,17 +26,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      final response = await supabase.auth.signUp(
+      await supabase.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       // Verification record is created automatically by database trigger
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Registration successful! Please check your email to verify your account.'),
+            content: Text(
+              'Registration successful! Please check your email to verify your account.',
+            ),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
             duration: Duration(seconds: 5),
@@ -97,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 borderRadius: BorderRadius.circular(4),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -139,13 +141,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           'Join the Community',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  
+
                   // Form
                   Padding(
                     padding: const EdgeInsets.all(24.0),
@@ -171,7 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          
+
                           const Text(
                             'Email Address',
                             style: TextStyle(
@@ -199,7 +201,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                           ),
                           const SizedBox(height: 16),
-                          
+
                           const Text(
                             'Password',
                             style: TextStyle(
@@ -227,7 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                           ),
                           const SizedBox(height: 16),
-                          
+
                           const Text(
                             'Confirm Password',
                             style: TextStyle(
@@ -255,7 +257,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                           ),
                           const SizedBox(height: 24),
-                          
+
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
@@ -284,7 +286,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          
+
                           SizedBox(
                             width: double.infinity,
                             height: 42,
@@ -295,9 +297,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       height: 24,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(
-                                          AppColors.slatePrimary,
-                                        ),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              AppColors.slatePrimary,
+                                            ),
                                       ),
                                     ),
                                   )
@@ -313,14 +316,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                           ),
                           const SizedBox(height: 16),
-                          
+
                           Container(
                             width: double.infinity,
                             height: 1,
                             color: AppColors.border,
                           ),
                           const SizedBox(height: 16),
-                          
+
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -337,9 +340,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   Navigator.of(context).pop();
                                 },
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 child: const Text(
                                   'Sign In',
