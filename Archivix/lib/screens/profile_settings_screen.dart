@@ -293,6 +293,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildIdentityPanel({required User? user}) {
+    final isAdmin = _isAdmin(user);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: _innerPanelDecoration(
@@ -348,6 +350,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: AppColors.textPrimary,
                       ),
                     ),
+                    if (isAdmin) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.amberCardBg,
+                          border: Border.all(color: AppColors.amberBorder),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'ADMIN',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                            color: AppColors.amberDark,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1650,5 +1675,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (_) {
       return 'Unknown';
     }
+  }
+
+  bool _isAdmin(User? user) {
+    final role = user?.appMetadata['role'];
+    return role is String && role.toLowerCase() == 'admin';
   }
 }

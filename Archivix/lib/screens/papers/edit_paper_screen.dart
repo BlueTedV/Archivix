@@ -40,6 +40,7 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
   Uint8List? _selectedFileBytes;
   String? _selectedFileName;
   int? _selectedFileSize;
+  bool _removeCurrentPdf = false;
 
   @override
   void initState() {
@@ -119,6 +120,7 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
 
       if (mounted) {
         setState(() {
+          _removeCurrentPdf = false;
           _selectedFileName = picked.name;
           _selectedFileSize = fileSize;
           if (kIsWeb) {
@@ -141,18 +143,49 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
     }
   }
 
+  void _clearReplacementPdf() {
+    setState(() {
+      _selectedFile = null;
+      _selectedFileBytes = null;
+      _selectedFileName = null;
+      _selectedFileSize = null;
+    });
+  }
+
+  String? _normalizeStoragePath(dynamic rawPath, {required String bucket}) {
+    if (rawPath == null) return null;
+
+    final trimmed = '$rawPath'.trim();
+    if (trimmed.isEmpty ||
+        trimmed.startsWith('http://') ||
+        trimmed.startsWith('https://')) {
+      return null;
+    }
+
+    final bucketPrefix = '$bucket/';
+    if (trimmed.startsWith(bucketPrefix)) {
+      return trimmed.substring(bucketPrefix.length);
+    }
+
+    return trimmed;
+  }
+
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
 
     final title = _titleController.text.trim();
     final abstract = _abstractController.text.trim();
+    final currentPdfPath = (widget.paper['pdf_url'] as String?)?.trim();
+    final hasExistingPdf = currentPdfPath != null && currentPdfPath.isNotEmpty;
     final hasPdfReplacement =
         _selectedFile != null || _selectedFileBytes != null;
+    final hasPdfRemoval = _removeCurrentPdf && hasExistingPdf;
     final hasChanges =
         title != '${widget.paper['title'] ?? ''}' ||
         abstract != '${widget.paper['abstract'] ?? ''}' ||
         _selectedCategoryId != widget.paper['category_id'] ||
-        hasPdfReplacement;
+        hasPdfReplacement ||
+        hasPdfRemoval;
 
     if (!hasChanges) {
       if (!mounted) return;
@@ -212,12 +245,34 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
         updatePayload['pdf_url'] = storagePath;
         updatePayload['pdf_file_name'] = _selectedFileName;
         updatePayload['pdf_file_size'] = _selectedFileSize;
+      } else if (hasPdfRemoval) {
+        updatePayload['pdf_url'] = null;
+        updatePayload['pdf_file_name'] = null;
+        updatePayload['pdf_file_size'] = null;
       }
 
       await _supabase
           .from('papers')
           .update(updatePayload)
           .eq('id', widget.paper['id']);
+
+      if (hasPdfReplacement || hasPdfRemoval) {
+        final previousStoragePath = _normalizeStoragePath(
+          currentPdfPath,
+          bucket: 'papers-pdf',
+        );
+        if (previousStoragePath != null) {
+          try {
+            await _supabase.storage.from('papers-pdf').remove([
+              previousStoragePath,
+            ]);
+          } catch (error) {
+            debugPrint(
+              'Could not remove previous PDF "$previousStoragePath": $error',
+            );
+          }
+        }
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -240,6 +295,15 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentPdfPath = (widget.paper['pdf_url'] as String?)?.trim();
+    final hasExistingPdf = currentPdfPath != null && currentPdfPath.isNotEmpty;
+    final hasReplacementSelected =
+        _selectedFile != null || _selectedFileBytes != null;
+    final displayedPdfName = _removeCurrentPdf
+        ? 'Current PDF will be removed'
+        : _selectedFileName ??
+              '${widget.paper['pdf_file_name'] ?? 'No PDF attached'}';
+
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Document')),
       body: _isLoadingCategories
@@ -320,23 +384,75 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _selectedFileName ??
-                              '${widget.paper['pdf_file_name'] ?? 'Current PDF'}',
+                          displayedPdfName,
                           style: const TextStyle(
                             fontSize: 13,
                             color: AppColors.textSecondary,
                           ),
                         ),
+                        if (_removeCurrentPdf) ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Save changes to remove this PDF from the document.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.errorDark,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
                           onPressed: _pickReplacementPdf,
                           icon: const Icon(Icons.upload_file),
                           label: Text(
-                            _selectedFileName == null
+                            hasReplacementSelected
+                                ? 'Choose Different PDF'
+                                : hasExistingPdf && !_removeCurrentPdf
                                 ? 'Replace PDF'
-                                : 'Choose Different PDF',
+                                : 'Choose PDF',
                           ),
                         ),
+                        if (hasReplacementSelected) ...[
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: _clearReplacementPdf,
+                            icon: const Icon(Icons.close),
+                            label: const Text('Clear Selected PDF'),
+                          ),
+                        ] else if (hasExistingPdf) ...[
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _removeCurrentPdf = !_removeCurrentPdf;
+                              });
+                            },
+                            icon: Icon(
+                              _removeCurrentPdf
+                                  ? Icons.undo_outlined
+                                  : Icons.delete_outline,
+                            ),
+                            label: Text(
+                              _removeCurrentPdf
+                                  ? 'Keep Current PDF'
+                                  : 'Remove Current PDF',
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: _removeCurrentPdf
+                                  ? AppColors.slatePrimary
+                                  : AppColors.errorDark,
+                            ),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                            'This document currently has no attached PDF.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
