@@ -244,6 +244,24 @@
         color: #1d4ed8;
     }
 
+    .status-badge.submitted {
+        background: #fff7ed;
+        border: 1px solid #fdba74;
+        color: #c2410c;
+    }
+
+    .status-badge.under_review {
+        background: #eef4ff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+    }
+
+    .status-badge.rejected {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+    }
+
     .status-badge.archived {
         background: #f3f4f6;
         border: 1px solid #d1d5db;
@@ -261,6 +279,46 @@
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
+    }
+
+    .review-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .review-card {
+        padding: 18px;
+        border-radius: 22px;
+        background: #f8fbff;
+        border: 1px solid #dfe8f2;
+    }
+
+    .review-card h3 {
+        font-size: 17px;
+        margin-bottom: 8px;
+        color: #132238;
+    }
+
+    .review-card p {
+        color: #5f7187;
+        font-size: 13px;
+        line-height: 1.7;
+        margin-bottom: 12px;
+    }
+
+    .review-meta {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 14px;
+        color: #5f7187;
+        font-size: 12px;
+    }
+
+    .review-card textarea {
+        min-height: 94px;
+        margin-bottom: 10px;
     }
 
     .action-form {
@@ -361,6 +419,21 @@
                     <strong>Published Documents</strong>
                     <span>{{ $stats['published_papers'] }}</span>
                 </div>
+
+                <div class="summary-item">
+                    <strong>Submitted</strong>
+                    <span>{{ $stats['submitted_papers'] }}</span>
+                </div>
+
+                <div class="summary-item">
+                    <strong>Under Review</strong>
+                    <span>{{ $stats['under_review_papers'] }}</span>
+                </div>
+
+                <div class="summary-item">
+                    <strong>Rejected</strong>
+                    <span>{{ $stats['rejected_papers'] }}</span>
+                </div>
             </div>
         </div>
     </section>
@@ -378,6 +451,69 @@
                 <a href="{{ route('dashboard.posts.index', ['filter' => 'papers']) }}" class="filter-pill {{ $filter === 'papers' ? 'active' : '' }}">Documents</a>
             </div>
         </div>
+
+        <div class="toolbar" style="margin-top: 0; margin-bottom: 14px;">
+            <div>
+                <h2>Review Queue</h2>
+                <p>Dokumen yang statusnya <code>submitted</code> atau <code>under_review</code> ditinjau dari sini supaya panel web tetap jadi workspace utama admin.</p>
+            </div>
+        </div>
+
+        @if (count($reviewQueue) === 0)
+            <div class="empty-state" style="padding-top: 10px;">
+                <h3>Tidak ada dokumen yang menunggu review.</h3>
+                <p>Begitu user submit document untuk ditinjau, kartunya akan muncul di sini.</p>
+            </div>
+        @else
+            <div class="review-grid">
+                @foreach ($reviewQueue as $paper)
+                    <article class="review-card">
+                        <div class="actions" style="justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span class="status-badge {{ $paper['status'] }}">{{ $paper['status'] }}</span>
+                            <a href="{{ route('dashboard.posts.edit', ['contentType' => 'paper', 'contentId' => $paper['id']]) }}" class="btn btn-secondary">Open Review</a>
+                        </div>
+
+                        <h3>{{ $paper['title'] }}</h3>
+                        <p>{{ $paper['excerpt'] !== '' ? $paper['excerpt'] : 'No abstract summary yet.' }}</p>
+
+                        <div class="review-meta">
+                            <span>Owner: <code>{{ $paper['user_id'] }}</code></span>
+                            <span>Category: {{ $paper['category_name'] }}</span>
+                            <span>Created: {{ \Illuminate\Support\Carbon::parse($paper['created_at'])->translatedFormat('d M Y H:i') }}</span>
+                            @if (($paper['submitted_at'] ?? null) !== null)
+                                <span>Submitted: {{ \Illuminate\Support\Carbon::parse($paper['submitted_at'])->translatedFormat('d M Y H:i') }}</span>
+                            @endif
+                        </div>
+
+                        <div class="actions" style="margin-bottom: 10px;">
+                            @if ($paper['status'] !== 'under_review')
+                                <form action="{{ route('dashboard.posts.under-review', ['contentId' => $paper['id']]) }}" method="POST" class="action-form">
+                                    @csrf
+                                    <button type="submit" class="btn btn-secondary">Mark Under Review</button>
+                                </form>
+                            @endif
+
+                            <form action="{{ route('dashboard.posts.publish', ['contentId' => $paper['id']]) }}" method="POST" class="action-form">
+                                @csrf
+                                <button type="submit" class="btn btn-primary">Publish</button>
+                            </form>
+                        </div>
+
+                        <form action="{{ route('dashboard.posts.reject', ['contentId' => $paper['id']]) }}" method="POST">
+                            @csrf
+                            <label class="form-label">Reject With Reason</label>
+                            <textarea
+                                name="rejection_reason"
+                                class="form-input"
+                                placeholder="Jelaskan revisi yang perlu dilakukan author..."
+                                required
+                            >{{ old('rejection_reason') }}</textarea>
+                            <button type="submit" class="btn btn-danger">Reject Document</button>
+                        </form>
+                    </article>
+                @endforeach
+            </div>
+        @endif
 
         @if (count($items) === 0)
             <div class="empty-state">
@@ -413,8 +549,17 @@
                                         <span class="status-badge {{ $item['status'] }}">{{ $item['status'] }}</span>
                                     </div>
                                     <span>Dibuat {{ \Illuminate\Support\Carbon::parse($item['created_at'])->translatedFormat('d M Y H:i') }}</span>
+                                    @if (($item['submitted_at'] ?? null) !== null)
+                                        <span>Submitted {{ \Illuminate\Support\Carbon::parse($item['submitted_at'])->translatedFormat('d M Y H:i') }}</span>
+                                    @endif
+                                    @if (($item['reviewed_at'] ?? null) !== null)
+                                        <span>Reviewed {{ \Illuminate\Support\Carbon::parse($item['reviewed_at'])->translatedFormat('d M Y H:i') }}</span>
+                                    @endif
                                     @if (($item['published_at'] ?? null) !== null)
                                         <span>Published {{ \Illuminate\Support\Carbon::parse($item['published_at'])->translatedFormat('d M Y H:i') }}</span>
+                                    @endif
+                                    @if (($item['rejection_reason'] ?? '') !== '')
+                                        <span>Feedback: {{ $item['rejection_reason'] }}</span>
                                     @endif
                                 </div>
                             </td>
@@ -424,6 +569,13 @@
                             <td>
                                 <div class="actions">
                                     <a href="{{ route('dashboard.posts.edit', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" class="btn btn-secondary">Edit</a>
+
+                                    @if ($item['type'] === 'paper' && $item['status'] === 'submitted')
+                                        <form action="{{ route('dashboard.posts.under-review', ['contentId' => $item['id']]) }}" method="POST" class="action-form">
+                                            @csrf
+                                            <button type="submit" class="btn btn-secondary">Under Review</button>
+                                        </form>
+                                    @endif
 
                                     @if ($item['type'] === 'paper' && $item['status'] !== 'published')
                                         <form action="{{ route('dashboard.posts.publish', ['contentId' => $item['id']]) }}" method="POST" class="action-form">

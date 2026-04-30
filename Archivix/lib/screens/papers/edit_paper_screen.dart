@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/services/content_version_service.dart';
+import '../../core/utils/paper_review_status.dart';
 
 class EditPaperScreen extends StatefulWidget {
   final Map<String, dynamic> paper;
@@ -170,8 +171,16 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
     return trimmed;
   }
 
-  Future<void> _saveChanges() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _saveChanges({required String targetStatus}) async {
+    final normalizedCurrentStatus = PaperReviewStatus.normalize(
+      widget.paper['status'],
+    );
+    final isSubmittingForReview = targetStatus == PaperReviewStatus.submitted;
+    final isSavingDraft = targetStatus == PaperReviewStatus.draft;
+    final requiresValidation =
+        isSubmittingForReview || normalizedCurrentStatus == PaperReviewStatus.published;
+
+    if (requiresValidation && !_formKey.currentState!.validate()) return;
 
     final title = _titleController.text.trim();
     final abstract = _abstractController.text.trim();
@@ -180,12 +189,38 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
     final hasPdfReplacement =
         _selectedFile != null || _selectedFileBytes != null;
     final hasPdfRemoval = _removeCurrentPdf && hasExistingPdf;
+    final hasPdfAfterSave = hasPdfReplacement || (hasExistingPdf && !hasPdfRemoval);
+
+    if (isSavingDraft && title.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add a title before saving this draft.'),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+      return;
+    }
+
+    if (isSubmittingForReview && !hasPdfAfterSave) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A PDF is required before submitting for review.'),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+      return;
+    }
+
+    final statusChanged = normalizedCurrentStatus != targetStatus;
     final hasChanges =
         title != '${widget.paper['title'] ?? ''}' ||
         abstract != '${widget.paper['abstract'] ?? ''}' ||
         _selectedCategoryId != widget.paper['category_id'] ||
         hasPdfReplacement ||
-        hasPdfRemoval;
+        hasPdfRemoval ||
+        statusChanged;
 
     if (!hasChanges) {
       if (!mounted) return;
@@ -225,6 +260,21 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
         'abstract': abstract,
         'category_id': _selectedCategoryId,
       };
+
+      if (normalizedCurrentStatus != PaperReviewStatus.published) {
+        updatePayload['status'] = targetStatus;
+        updatePayload['rejection_reason'] = null;
+
+        if (targetStatus == PaperReviewStatus.submitted) {
+          updatePayload['submitted_at'] = DateTime.now().toIso8601String();
+          updatePayload['reviewed_at'] = null;
+          updatePayload['reviewed_by'] = null;
+        } else if (targetStatus == PaperReviewStatus.draft) {
+          updatePayload['submitted_at'] = null;
+          updatePayload['reviewed_at'] = null;
+          updatePayload['reviewed_by'] = null;
+        }
+      }
 
       if (hasPdfReplacement) {
         final extension = path.extension(_selectedFileName ?? '.pdf');
@@ -460,6 +510,67 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
+                      color: PaperReviewStatus.backgroundColor(
+                        widget.paper['status'],
+                      ),
+                      border: Border.all(
+                        color: PaperReviewStatus.borderColor(widget.paper['status']),
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          PaperReviewStatus.icon(widget.paper['status']),
+                          size: 18,
+                          color: PaperReviewStatus.textColor(widget.paper['status']),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Current status: ${PaperReviewStatus.label(widget.paper['status'])}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: PaperReviewStatus.textColor(widget.paper['status']),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                PaperReviewStatus.ownerDescription(widget.paper['status']),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                  height: 1.5,
+                                ),
+                              ),
+                              if ((widget.paper['rejection_reason'] as String?) !=
+                                      null &&
+                                  '${widget.paper['rejection_reason']}'.trim().isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Admin feedback: ${widget.paper['rejection_reason']}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.errorDark,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
                       color: AppColors.surfaceLight,
                       border: Border.all(color: AppColors.border),
                       borderRadius: BorderRadius.circular(4),
@@ -474,27 +585,93 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  SizedBox(
-                    height: 46,
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _saveChanges,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.slatePrimary,
+                  if (PaperReviewStatus.normalize(widget.paper['status']) ==
+                      PaperReviewStatus.published)
+                    SizedBox(
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: _isSaving
+                            ? null
+                            : () => _saveChanges(
+                                targetStatus: PaperReviewStatus.published,
+                              ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.slatePrimary,
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : const Text('Save Changes'),
                       ),
-                      child: _isSaving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 46,
+                            child: OutlinedButton(
+                              onPressed: _isSaving
+                                  ? null
+                                  : () => _saveChanges(
+                                      targetStatus: PaperReviewStatus.draft,
+                                    ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.slatePrimary,
+                                side: const BorderSide(
+                                  color: AppColors.slatePrimary,
                                 ),
                               ),
-                            )
-                          : const Text('Save Changes'),
+                              child: const Text('Save Draft'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 46,
+                            child: ElevatedButton(
+                              onPressed: _isSaving
+                                  ? null
+                                  : () => _saveChanges(
+                                      targetStatus: PaperReviewStatus.submitted,
+                                    ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.slatePrimary,
+                              ),
+                              child: _isSaving
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                  : Text(
+                                      PaperReviewStatus.normalize(
+                                                widget.paper['status'],
+                                              ) ==
+                                              PaperReviewStatus.rejected
+                                          ? 'Resubmit for Review'
+                                          : 'Submit for Review',
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
                 ],
               ),
             ),

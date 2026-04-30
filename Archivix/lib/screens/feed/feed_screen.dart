@@ -17,6 +17,7 @@ class FeedScreen extends StatefulWidget {
 class _FeedScreenState extends State<FeedScreen> {
   final supabase = Supabase.instance.client;
   final _engagementService = ContentEngagementService();
+  final Set<String> _pendingReactionKeys = <String>{};
   List<Map<String, dynamic>> _papers = [];
   List<Map<String, dynamic>> _posts = [];
   List<Map<String, dynamic>> _combinedItems = [];
@@ -180,6 +181,18 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
+  ContentEngagementSummary _summaryFromItem(Map<String, dynamic> item) {
+    return ContentEngagementSummary(
+      likesCount: item['likes_count'] ?? 0,
+      dislikesCount: item['dislikes_count'] ?? 0,
+      userReaction: item['user_reaction'],
+    );
+  }
+
+  String _reactionKey(String contentType, String contentId) {
+    return '$contentType:$contentId';
+  }
+
   void _sortCombinedItems(List<Map<String, dynamic>> items) {
     items.sort((a, b) {
       if (_sortMode == 'popular') {
@@ -205,6 +218,42 @@ class _FeedScreenState extends State<FeedScreen> {
     required String contentId,
     required int reactionValue,
   }) async {
+    final key = _reactionKey(contentType, contentId);
+    if (_pendingReactionKeys.contains(key)) {
+      return;
+    }
+
+    Map<String, dynamic>? referenceItem;
+    for (final item in _combinedItems) {
+      if (item['content_type'] == contentType && '${item['id']}' == contentId) {
+        referenceItem = item;
+        break;
+      }
+    }
+
+    if (referenceItem == null) {
+      return;
+    }
+
+    final previousSummary = _summaryFromItem(referenceItem);
+    final optimisticSummary = previousSummary.toggledReaction(reactionValue);
+
+    if (mounted) {
+      setState(() {
+        _pendingReactionKeys.add(key);
+        for (final collection in [_papers, _posts, _combinedItems]) {
+          for (final item in collection) {
+            if (item['content_type'] == contentType &&
+                '${item['id']}' == contentId) {
+              _applyEngagementSummary(item, optimisticSummary);
+            }
+          }
+        }
+
+        _sortCombinedItems(_combinedItems);
+      });
+    }
+
     try {
       final summary = await _engagementService.toggleReaction(
         contentType: contentType,
@@ -224,10 +273,25 @@ class _FeedScreenState extends State<FeedScreen> {
           }
         }
 
+        _pendingReactionKeys.remove(key);
         _sortCombinedItems(_combinedItems);
       });
     } catch (error) {
       if (!mounted) return;
+
+      setState(() {
+        for (final collection in [_papers, _posts, _combinedItems]) {
+          for (final item in collection) {
+            if (item['content_type'] == contentType &&
+                '${item['id']}' == contentId) {
+              _applyEngagementSummary(item, previousSummary);
+            }
+          }
+        }
+
+        _pendingReactionKeys.remove(key);
+        _sortCombinedItems(_combinedItems);
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -564,6 +628,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 if (contentType == 'paper') {
                   final category = item['categories'] as Map<String, dynamic>?;
                   final authors = item['paper_authors'] as List<dynamic>?;
+                  final reactionKey = _reactionKey('paper', '${item['id']}');
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -578,6 +643,9 @@ class _FeedScreenState extends State<FeedScreen> {
                       likesCount: item['likes_count'] ?? 0,
                       dislikesCount: item['dislikes_count'] ?? 0,
                       userReaction: item['user_reaction'],
+                      isReactionPending: _pendingReactionKeys.contains(
+                        reactionKey,
+                      ),
                       onLike: () => _handleFeedReaction(
                         contentType: 'paper',
                         contentId: '${item['id']}',
@@ -593,6 +661,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 } else {
                   // Post card
                   final category = item['categories'] as Map<String, dynamic>?;
+                  final reactionKey = _reactionKey('post', '${item['id']}');
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -606,6 +675,9 @@ class _FeedScreenState extends State<FeedScreen> {
                       likesCount: item['likes_count'] ?? 0,
                       dislikesCount: item['dislikes_count'] ?? 0,
                       userReaction: item['user_reaction'],
+                      isReactionPending: _pendingReactionKeys.contains(
+                        reactionKey,
+                      ),
                       onLike: () => _handleFeedReaction(
                         contentType: 'post',
                         contentId: '${item['id']}',
@@ -637,6 +709,7 @@ class _FeedScreenState extends State<FeedScreen> {
     required int likesCount,
     required int dislikesCount,
     required int? userReaction,
+    required bool isReactionPending,
     required VoidCallback onLike,
     required VoidCallback onDislike,
   }) {
@@ -734,8 +807,9 @@ class _FeedScreenState extends State<FeedScreen> {
                   activeIcon: Icons.thumb_up_alt,
                   count: likesCount,
                   isActive: userReaction == 1,
+                  isPending: isReactionPending,
                   activeColor: AppColors.success,
-                  onTap: onLike,
+                  onTap: isReactionPending ? null : onLike,
                 ),
                 const SizedBox(width: 8),
                 _buildReactionButton(
@@ -743,8 +817,9 @@ class _FeedScreenState extends State<FeedScreen> {
                   activeIcon: Icons.thumb_down_alt,
                   count: dislikesCount,
                   isActive: userReaction == -1,
+                  isPending: isReactionPending,
                   activeColor: AppColors.errorDark,
-                  onTap: onDislike,
+                  onTap: isReactionPending ? null : onDislike,
                 ),
               ],
             ),
@@ -764,6 +839,7 @@ class _FeedScreenState extends State<FeedScreen> {
     required int likesCount,
     required int dislikesCount,
     required int? userReaction,
+    required bool isReactionPending,
     required VoidCallback onLike,
     required VoidCallback onDislike,
   }) {
@@ -874,8 +950,9 @@ class _FeedScreenState extends State<FeedScreen> {
                   activeIcon: Icons.thumb_up_alt,
                   count: likesCount,
                   isActive: userReaction == 1,
+                  isPending: isReactionPending,
                   activeColor: AppColors.success,
-                  onTap: onLike,
+                  onTap: isReactionPending ? null : onLike,
                 ),
                 const SizedBox(width: 8),
                 _buildReactionButton(
@@ -883,8 +960,9 @@ class _FeedScreenState extends State<FeedScreen> {
                   activeIcon: Icons.thumb_down_alt,
                   count: dislikesCount,
                   isActive: userReaction == -1,
+                  isPending: isReactionPending,
                   activeColor: AppColors.errorDark,
-                  onTap: onDislike,
+                  onTap: isReactionPending ? null : onDislike,
                 ),
               ],
             ),
@@ -911,8 +989,9 @@ class _FeedScreenState extends State<FeedScreen> {
     required IconData activeIcon,
     required int count,
     required bool isActive,
+    required bool isPending,
     required Color activeColor,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     final color = isActive ? activeColor : AppColors.textMuted;
     final backgroundColor = isActive
@@ -921,34 +1000,38 @@ class _FeedScreenState extends State<FeedScreen> {
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            border: Border.all(
-              color: isActive
-                  ? activeColor.withValues(alpha: 0.3)
-                  : AppColors.border,
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(isActive ? activeIcon : icon, size: 16, color: color),
-              const SizedBox(width: 6),
-              Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: isPending ? 0.65 : 1,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              border: Border.all(
+                color: isActive
+                    ? activeColor.withValues(alpha: 0.3)
+                    : AppColors.border,
               ),
-            ],
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(isActive ? activeIcon : icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

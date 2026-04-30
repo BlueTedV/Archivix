@@ -185,7 +185,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   // ─── Document: open PDF in viewer ───────────────────────────────────────────
 
   Future<void> _toggleReaction(int reactionValue) async {
-    setState(() => _isReacting = true);
+    final previousSummary = _engagementSummary;
+    final optimisticSummary = previousSummary.toggledReaction(reactionValue);
+
+    setState(() {
+      _isReacting = true;
+      _engagementSummary = optimisticSummary;
+    });
 
     try {
       final summary = await _engagementService.toggleReaction(
@@ -201,6 +207,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       }
     } catch (error) {
       if (mounted) {
+        setState(() {
+          _engagementSummary = previousSummary;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error.toString()),

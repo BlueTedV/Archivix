@@ -28,6 +28,43 @@ class ContentEngagementSummary {
           : userReaction ?? this.userReaction,
     );
   }
+
+  ContentEngagementSummary toggledReaction(int reactionValue) {
+    var nextLikesCount = likesCount;
+    var nextDislikesCount = dislikesCount;
+    int? nextUserReaction = userReaction;
+
+    if (userReaction == reactionValue) {
+      if (reactionValue == 1) {
+        nextLikesCount = nextLikesCount > 0 ? nextLikesCount - 1 : 0;
+      } else {
+        nextDislikesCount =
+            nextDislikesCount > 0 ? nextDislikesCount - 1 : 0;
+      }
+      nextUserReaction = null;
+    } else {
+      if (userReaction == 1) {
+        nextLikesCount = nextLikesCount > 0 ? nextLikesCount - 1 : 0;
+      } else if (userReaction == -1) {
+        nextDislikesCount =
+            nextDislikesCount > 0 ? nextDislikesCount - 1 : 0;
+      }
+
+      if (reactionValue == 1) {
+        nextLikesCount += 1;
+      } else {
+        nextDislikesCount += 1;
+      }
+
+      nextUserReaction = reactionValue;
+    }
+
+    return ContentEngagementSummary(
+      likesCount: nextLikesCount,
+      dislikesCount: nextDislikesCount,
+      userReaction: nextUserReaction,
+    );
+  }
 }
 
 class ContentEngagementService {

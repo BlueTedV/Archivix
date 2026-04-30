@@ -16,7 +16,7 @@ class AuthController extends Controller
             return redirect('/dashboard');
         }
 
-        return view('login');
+        return view('auth.admin-login');
     }
 
     public function store(
@@ -55,6 +55,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/login')->with('success', 'Sesi admin sudah ditutup.');
+        return redirect()->route('admin.login')->with('success', 'Sesi admin sudah ditutup.');
     }
 }

@@ -199,6 +199,87 @@ class _EditPostScreenState extends State<EditPostScreen> {
     });
   }
 
+  Future<Map<String, dynamic>?> _findPersistedAttachment(
+    Map<String, dynamic> attachment,
+  ) async {
+    final postId = widget.post['id'];
+    final attachmentId = attachment['id'];
+    final fileUrl = '${attachment['file_url'] ?? ''}'.trim();
+
+    if (attachmentId != null) {
+      final response = await _supabase
+          .from('post_attachments')
+          .select('id, file_url, file_name')
+          .eq('post_id', postId)
+          .eq('id', attachmentId)
+          .maybeSingle();
+
+      if (response != null) {
+        return Map<String, dynamic>.from(response);
+      }
+    }
+
+    if (fileUrl.isNotEmpty) {
+      final response = await _supabase
+          .from('post_attachments')
+          .select('id, file_url, file_name')
+          .eq('post_id', postId)
+          .eq('file_url', fileUrl)
+          .maybeSingle();
+
+      if (response != null) {
+        return Map<String, dynamic>.from(response);
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _deleteRemovedAttachments() async {
+    for (final attachment in _removedAttachments) {
+      final persistedAttachment = await _findPersistedAttachment(attachment);
+      final attachmentName =
+          '${attachment['file_name'] ?? persistedAttachment?['file_name'] ?? 'attachment'}';
+
+      if (persistedAttachment == null) {
+        throw Exception(
+          'Could not find "$attachmentName" in the database to delete it.',
+        );
+      }
+
+      final deletedRows = List<Map<String, dynamic>>.from(
+        await _supabase
+            .from('post_attachments')
+            .delete()
+            .eq('post_id', widget.post['id'])
+            .eq('id', persistedAttachment['id'])
+            .select('id, file_url'),
+      );
+
+      if (deletedRows.isEmpty) {
+        throw Exception(
+          'Could not delete "$attachmentName". This is usually caused by a row not matching anymore or a missing delete policy on post_attachments.',
+        );
+      }
+
+      final storagePath = _normalizeStoragePath(
+        deletedRows.first['file_url'] ?? persistedAttachment['file_url'],
+        bucket: 'post-attachments',
+      );
+      if (storagePath != null) {
+        try {
+          await _supabase.storage.from('post-attachments').remove([
+            storagePath,
+          ]);
+        } catch (error) {
+          debugPrint(
+            'Could not remove attachment file "$storagePath": $error',
+          );
+        }
+      }
+    }
+  }
+
   String _getFileType(String? extension) {
     if (extension == null) return 'document';
 
@@ -266,40 +347,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
           .eq('id', widget.post['id']);
 
       if (_removedAttachments.isNotEmpty) {
-        for (final attachment in _removedAttachments) {
-          final attachmentId = attachment['id'];
-          final fileUrl = attachment['file_url'];
-
-          if (attachmentId != null) {
-            await _supabase
-                .from('post_attachments')
-                .delete()
-                .eq('post_id', widget.post['id'])
-                .eq('id', attachmentId);
-          } else if (fileUrl != null) {
-            await _supabase
-                .from('post_attachments')
-                .delete()
-                .eq('post_id', widget.post['id'])
-                .eq('file_url', fileUrl);
-          }
-
-          final storagePath = _normalizeStoragePath(
-            fileUrl,
-            bucket: 'post-attachments',
-          );
-          if (storagePath != null) {
-            try {
-              await _supabase.storage.from('post-attachments').remove([
-                storagePath,
-              ]);
-            } catch (error) {
-              debugPrint(
-                'Could not remove attachment file "$storagePath": $error',
-              );
-            }
-          }
-        }
+        await _deleteRemovedAttachments();
       }
 
       if (_newAttachments.isNotEmpty) {

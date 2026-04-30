@@ -220,7 +220,7 @@
             <span>Admin Session</span>
             <h1>Selamat datang di dashboard admin Archivix.</h1>
             <p>
-                Kamu sudah berhasil masuk melalui Supabase dan lolos pengecekan role admin.
+                Kamu sudah berhasil masuk melalui login Supabase Archivix dan lolos pengecekan role admin.
                 Dashboard ini sekarang siap kita kembangkan menjadi panel pengelolaan questions dan documents.
             </p>
         </div>
@@ -256,7 +256,7 @@
         <article class="stat-card">
             <span>Auth</span>
             <strong>OK</strong>
-            <p>Login admin lewat Supabase untuk panel web sudah aktif.</p>
+            <p>Satu login Supabase sekarang langsung mengarahkan admin ke dashboard ini.</p>
         </article>
 
         <article class="stat-card">

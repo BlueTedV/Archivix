@@ -24,11 +24,15 @@ class AdminContentController extends Controller
             'items' => [],
             'posts' => [],
             'papers' => [],
+            'reviewQueue' => [],
             'stats' => [
                 'total' => 0,
                 'posts' => 0,
                 'papers' => 0,
                 'published_papers' => 0,
+                'submitted_papers' => 0,
+                'under_review_papers' => 0,
+                'rejected_papers' => 0,
             ],
         ];
         $loadError = null;
@@ -42,6 +46,7 @@ class AdminContentController extends Controller
         return view('dashboard.posts.index', [
             'filter' => $filter,
             'items' => $payload['items'],
+            'reviewQueue' => $payload['reviewQueue'],
             'stats' => $payload['stats'],
             'loadError' => $loadError,
         ]);
@@ -155,11 +160,24 @@ class AdminContentController extends Controller
     }
 
     public function publish(
+        Request $request,
         string $contentId,
         SupabaseAdminContentService $contentService,
     ): RedirectResponse {
+        $reviewerUserId = (string) data_get(
+            $request->session()->get('admin_user'),
+            'id',
+            '',
+        );
+
+        if ($reviewerUserId === '') {
+            return back()->withErrors([
+                'content' => 'Admin session is missing the reviewer user id.',
+            ]);
+        }
+
         try {
-            $contentService->publishPaper($contentId);
+            $contentService->publishPaper($contentId, $reviewerUserId);
         } catch (RuntimeException $exception) {
             return back()->withErrors(['content' => $exception->getMessage()]);
         }
@@ -167,6 +185,70 @@ class AdminContentController extends Controller
         return redirect()
             ->route('dashboard.posts.index', ['filter' => 'papers'])
             ->with('success', 'Document published successfully.');
+    }
+
+    public function markUnderReview(
+        Request $request,
+        string $contentId,
+        SupabaseAdminContentService $contentService,
+    ): RedirectResponse {
+        $reviewerUserId = (string) data_get(
+            $request->session()->get('admin_user'),
+            'id',
+            '',
+        );
+
+        if ($reviewerUserId === '') {
+            return back()->withErrors([
+                'content' => 'Admin session is missing the reviewer user id.',
+            ]);
+        }
+
+        try {
+            $contentService->markPaperUnderReview($contentId, $reviewerUserId);
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['content' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('dashboard.posts.index', ['filter' => 'papers'])
+            ->with('success', 'Document moved to under review.');
+    }
+
+    public function reject(
+        Request $request,
+        string $contentId,
+        SupabaseAdminContentService $contentService,
+    ): RedirectResponse {
+        $reviewerUserId = (string) data_get(
+            $request->session()->get('admin_user'),
+            'id',
+            '',
+        );
+
+        if ($reviewerUserId === '') {
+            return back()->withErrors([
+                'content' => 'Admin session is missing the reviewer user id.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'rejection_reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        try {
+            $contentService->rejectPaper(
+                $contentId,
+                (string) $data['rejection_reason'],
+                $reviewerUserId,
+            );
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['content' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('dashboard.posts.index', ['filter' => 'papers'])
+            ->with('success', 'Document rejected and feedback saved.');
     }
 
     public function destroy(

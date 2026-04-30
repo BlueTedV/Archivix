@@ -197,6 +197,25 @@
                 </div>
 
                 <div class="meta-card">
+                    <strong>Submitted At</strong>
+                    <span>
+                        {{ ($item['submitted_at'] ?? null) ? \Illuminate\Support\Carbon::parse($item['submitted_at'])->translatedFormat('d M Y H:i') : 'Not submitted yet' }}
+                    </span>
+                </div>
+
+                <div class="meta-card">
+                    <strong>Reviewed At</strong>
+                    <span>
+                        {{ ($item['reviewed_at'] ?? null) ? \Illuminate\Support\Carbon::parse($item['reviewed_at'])->translatedFormat('d M Y H:i') : 'No review decision yet' }}
+                    </span>
+                </div>
+
+                <div class="meta-card">
+                    <strong>Rejection Reason</strong>
+                    <span>{{ $item['rejection_reason'] !== '' ? $item['rejection_reason'] : 'No rejection feedback saved' }}</span>
+                </div>
+
+                <div class="meta-card">
                     <strong>PDF File</strong>
                     <span>{{ $item['pdf_file_name'] !== '' ? $item['pdf_file_name'] : 'No file name recorded' }}</span>
                 </div>
@@ -303,11 +322,39 @@
                 </div>
             </form>
 
-            @if ($item['type'] === 'paper' && $item['status'] !== 'published')
-                <div class="form-actions" style="margin-top: 12px;">
-                    <form action="{{ route('dashboard.posts.publish', ['contentId' => $item['id']]) }}" method="POST">
+            @if ($item['type'] === 'paper')
+                <div class="history-block">
+                    <h2>Review Actions</h2>
+                    <p>Jalankan workflow review admin dari halaman web ini supaya document moderation tetap terpusat di Laravel.</p>
+
+                    <div class="form-actions">
+                        @if ($item['status'] !== 'under_review')
+                            <form action="{{ route('dashboard.posts.under-review', ['contentId' => $item['id']]) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="btn btn-secondary">Mark Under Review</button>
+                            </form>
+                        @endif
+
+                        @if ($item['status'] !== 'published')
+                            <form action="{{ route('dashboard.posts.publish', ['contentId' => $item['id']]) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="btn btn-primary">Publish Document</button>
+                            </form>
+                        @endif
+                    </div>
+
+                    <form action="{{ route('dashboard.posts.reject', ['contentId' => $item['id']]) }}" method="POST" style="margin-top: 14px;">
                         @csrf
-                        <button type="submit" class="btn btn-secondary">Publish Document</button>
+                        <label class="form-label">Reject With Reason</label>
+                        <textarea
+                            name="rejection_reason"
+                            class="form-input"
+                            placeholder="Tulis catatan revisi untuk author..."
+                            required
+                        >{{ old('rejection_reason', $item['status'] === 'rejected' ? $item['rejection_reason'] : '') }}</textarea>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-danger">Reject Document</button>
+                        </div>
                     </form>
                 </div>
             @endif

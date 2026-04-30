@@ -1,0 +1,7 @@
+this will be deleted when the development is finished
+
+ url: 'https://lbgqtschsdurqwutsmyl.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZ3F0c2Noc2R1cnF3dXRzbXlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MDA3MjQsImV4cCI6MjA4NjI3NjcyNH0.2RIwCPqFhiOQgBouAGgOK_TPyWmIxQQv_JpKsJYJ5MM',
+
+flutter run --dart-define=SUPABASE_URL=https://lbgqtschsdurqwutsmyl.supabase.co --dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZ3F0c2Noc2R1cnF3dXRzbXlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MDA3MjQsImV4cCI6MjA4NjI3NjcyNH0.2RIwCPqFhiOQgBouAGgOK_TPyWmIxQQv_JpKsJYJ5MM

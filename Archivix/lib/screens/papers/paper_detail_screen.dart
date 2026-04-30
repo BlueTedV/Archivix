@@ -8,6 +8,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'pdf_viewer_screen.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/content_engagement_service.dart';
+import '../../core/utils/paper_review_status.dart';
 import 'edit_paper_screen.dart';
 import 'paper_history_screen.dart';
 
@@ -23,12 +24,17 @@ class PaperDetailScreen extends StatefulWidget {
 class _PaperDetailScreenState extends State<PaperDetailScreen> {
   final supabase = Supabase.instance.client;
   final _engagementService = ContentEngagementService();
+  final TextEditingController _commentController = TextEditingController();
   Map<String, dynamic>? _paper;
   List<Map<String, dynamic>> _authors = [];
+  List<Map<String, dynamic>> _comments = [];
   bool _isLoading = true;
+  bool _isLoadingComments = false;
   String? _error;
+  String? _commentsError;
   bool _isDownloading = false;
   bool _isReacting = false;
+  bool _isSubmittingComment = false;
   ContentEngagementSummary _engagementSummary =
       const ContentEngagementSummary();
 
@@ -36,11 +42,19 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
   void initState() {
     super.initState();
     _loadPaperDetails();
-    _loadReactionSummary();
-    _incrementViewCount();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadReactionSummary() async {
+    if (_paper != null && !PaperReviewStatus.isPublished(_paper!['status'])) {
+      return;
+    }
+
     final summary = await _engagementService.loadSummary(
       contentType: 'paper',
       contentId: widget.paperId,
@@ -74,7 +88,11 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
             pdf_file_size,
             views_count,
             created_at,
+            submitted_at,
+            reviewed_at,
             published_at,
+            status,
+            rejection_reason,
             user_id,
             categories (name)
           ''')
@@ -91,12 +109,26 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
       if (mounted) {
         paperResponse['category_name'] =
             (paperResponse['categories'] as Map?)?['name'] ?? 'Uncategorized';
+        final status = PaperReviewStatus.normalize(paperResponse['status']);
 
         setState(() {
           _paper = paperResponse;
           _authors = List<Map<String, dynamic>>.from(authorsResponse);
           _isLoading = false;
         });
+
+        if (PaperReviewStatus.isPublished(status)) {
+          _loadReactionSummary();
+          _loadComments();
+          _incrementViewCount();
+        } else {
+          setState(() {
+            _engagementSummary = const ContentEngagementSummary();
+            _comments = [];
+            _commentsError = null;
+            _isLoadingComments = false;
+          });
+        }
       }
     } catch (error) {
       if (mounted) {
@@ -109,6 +141,10 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
   }
 
   Future<void> _incrementViewCount() async {
+    if (_paper != null && !PaperReviewStatus.isPublished(_paper!['status'])) {
+      return;
+    }
+
     try {
       await supabase.rpc(
         'increment_paper_views',
@@ -120,9 +156,140 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
     }
   }
 
+  Future<void> _loadComments() async {
+    if (_paper != null && !PaperReviewStatus.isPublished(_paper!['status'])) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingComments = true;
+        _commentsError = null;
+      });
+    }
+
+    try {
+      final response = await supabase
+          .from('paper_comments')
+          .select('id, paper_id, user_id, author_label, body, created_at, updated_at')
+          .eq('paper_id', widget.paperId)
+          .order('created_at');
+
+      if (!mounted) return;
+
+      setState(() {
+        _comments = List<Map<String, dynamic>>.from(response);
+        _isLoadingComments = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _commentsError = _friendlyCommentsError(error);
+        _isLoadingComments = false;
+      });
+    }
+  }
+
+  Future<void> _submitComment() async {
+    final user = supabase.auth.currentUser;
+    final body = _commentController.text.trim();
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please sign in to comment.'),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+      return;
+    }
+
+    if (body.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Write a comment before posting.'),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+      return;
+    }
+
+    final authorLabel = _currentUserLabel(user);
+    final tempId = 'pending-${DateTime.now().microsecondsSinceEpoch}';
+    final optimisticComment = <String, dynamic>{
+      'id': tempId,
+      'paper_id': widget.paperId,
+      'user_id': user.id,
+      'author_label': authorLabel,
+      'body': body,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+      'is_pending': true,
+    };
+
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isSubmittingComment = true;
+      _commentsError = null;
+      _comments = [..._comments, optimisticComment];
+      _commentController.clear();
+    });
+
+    try {
+      final inserted = await supabase
+          .from('paper_comments')
+          .insert({
+            'paper_id': widget.paperId,
+            'user_id': user.id,
+            'author_label': authorLabel,
+            'body': body,
+          })
+          .select('id, paper_id, user_id, author_label, body, created_at, updated_at')
+          .single();
+
+      if (!mounted) return;
+
+      setState(() {
+        _comments = _comments
+            .map(
+              (comment) => comment['id'] == tempId
+                  ? Map<String, dynamic>.from(inserted)
+                  : comment,
+            )
+            .toList();
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _comments.removeWhere((comment) => comment['id'] == tempId);
+        _commentsError = _friendlyCommentsError(error);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_friendlyCommentsError(error)),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+
+      setState(() {
+        _isSubmittingComment = false;
+      });
+    }
+  }
+
   Future<void> _toggleReaction(int reactionValue) async {
+    final previousSummary = _engagementSummary;
+    final optimisticSummary = previousSummary.toggledReaction(reactionValue);
+
     setState(() {
       _isReacting = true;
+      _engagementSummary = optimisticSummary;
     });
 
     try {
@@ -139,6 +306,10 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
       }
     } catch (error) {
       if (mounted) {
+        setState(() {
+          _engagementSummary = previousSummary;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error.toString()),
@@ -157,6 +328,11 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
 
   bool get _isOwner =>
       _paper != null && _paper!['user_id'] == supabase.auth.currentUser?.id;
+
+  bool get _canEditPaper =>
+      _isOwner &&
+      _paper != null &&
+      PaperReviewStatus.isOwnerEditable(_paper!['status']);
 
   Future<void> _openHistory() async {
     if (_paper == null) return;
@@ -481,19 +657,469 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
     }
   }
 
+  String _formatDateTime(String? dateString) {
+    if (dateString == null) return 'Unknown';
+
+    try {
+      final date = DateTime.parse(dateString).toLocal();
+      final now = DateTime.now();
+      final difference = now.difference(date);
+      final hh = date.hour.toString().padLeft(2, '0');
+      final mm = date.minute.toString().padLeft(2, '0');
+
+      if (difference.inMinutes < 1) {
+        return 'Just now';
+      }
+      if (difference.inHours < 1) {
+        return '${difference.inMinutes} min ago';
+      }
+      if (difference.inDays == 0) {
+        return 'Today at $hh:$mm';
+      }
+      if (difference.inDays == 1) {
+        return 'Yesterday at $hh:$mm';
+      }
+      if (difference.inDays < 7) {
+        return '${difference.inDays} days ago';
+      }
+      return '${date.day}/${date.month}/${date.year} $hh:$mm';
+    } catch (_) {
+      return 'Unknown';
+    }
+  }
+
+  String _friendlyCommentsError(Object error) {
+    final message = error.toString();
+    if (message.contains('paper_comments')) {
+      return 'Comments are not ready yet. Run paper_comments_setup.sql in Supabase first.';
+    }
+    return 'Unable to load comments right now.';
+  }
+
+  String _currentUserLabel(User user) {
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    final candidate = [
+      metadata['full_name'],
+      metadata['name'],
+      metadata['username'],
+      metadata['display_name'],
+    ].whereType<String>().map((value) => value.trim()).firstWhere(
+          (value) => value.isNotEmpty,
+          orElse: () => '',
+        );
+
+    if (candidate.isNotEmpty) {
+      return candidate;
+    }
+
+    final email = user.email?.trim() ?? '';
+    if (email.isNotEmpty) {
+      return email.split('@').first;
+    }
+
+    return 'Researcher';
+  }
+
+  Widget _buildStatusChip(String status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: PaperReviewStatus.backgroundColor(status),
+        border: Border.all(color: PaperReviewStatus.borderColor(status)),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            PaperReviewStatus.icon(status),
+            size: 14,
+            color: PaperReviewStatus.textColor(status),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            PaperReviewStatus.label(status),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: PaperReviewStatus.textColor(status),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewBanner(String status) {
+    final rejectionReason = (_paper?['rejection_reason'] as String?)?.trim();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: PaperReviewStatus.backgroundColor(status),
+        border: Border.all(color: PaperReviewStatus.borderColor(status)),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                PaperReviewStatus.icon(status),
+                size: 18,
+                color: PaperReviewStatus.textColor(status),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Status: ${PaperReviewStatus.label(status)}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: PaperReviewStatus.textColor(status),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            PaperReviewStatus.ownerDescription(status),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+          if (status == PaperReviewStatus.rejected &&
+              rejectionReason != null &&
+              rejectionReason.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.72),
+                border: Border.all(color: AppColors.errorBorder),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Admin feedback',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.errorDark,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    rejectionReason,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiscussionSection(String paperStatus) {
+    if (!PaperReviewStatus.isPublished(paperStatus)) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceFaint,
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Text(
+          'Discussion opens after this document is published.',
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.textMuted,
+            height: 1.5,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        _buildCommentComposer(),
+        const SizedBox(height: 12),
+        if (_isLoadingComments)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 10),
+                Text(
+                  'Loading discussion...',
+                  style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          )
+        else if (_commentsError != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.errorSurface,
+              border: Border.all(color: AppColors.errorBorder),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Discussion unavailable',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.errorDark,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _commentsError!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.errorDark,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _loadComments,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          )
+        else if (_comments.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceFaint,
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Column(
+              children: const [
+                Icon(
+                  Icons.comment_outlined,
+                  size: 40,
+                  color: AppColors.textSubtle,
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'No comments yet',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Start the discussion by sharing a question, insight, or review.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSubtle,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          ..._comments.map(_buildCommentCard),
+      ],
+    );
+  }
+
+  Widget _buildCommentComposer() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Join the discussion',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _commentController,
+            minLines: 3,
+            maxLines: 6,
+            maxLength: 2000,
+            textInputAction: TextInputAction.newline,
+            decoration: const InputDecoration(
+              hintText: 'Share a question, insight, or feedback about this document...',
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Be constructive and keep it relevant to the research.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSubtle,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: _isSubmittingComment ? null : _submitComment,
+                icon: _isSubmittingComment
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.send, size: 16),
+                label: Text(_isSubmittingComment ? 'Posting...' : 'Post'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommentCard(Map<String, dynamic> comment) {
+    final isPending = comment['is_pending'] == true;
+    final isOwnComment =
+        comment['user_id'] != null &&
+        comment['user_id'] == supabase.auth.currentUser?.id;
+
+    return Opacity(
+      opacity: isPending ? 0.7 : 1,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    comment['author_label'] ?? 'Researcher',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                if (isOwnComment && !isPending)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'You',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isPending ? 'Sending...' : _formatDateTime(comment['created_at']),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSubtle,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              comment['body'] ?? '',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.6,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final paperStatus = _paper == null
+        ? PaperReviewStatus.draft
+        : PaperReviewStatus.normalize(_paper!['status']);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Paper Details'),
+        title: const Text('Document Details'),
         actions: [
-          if (_paper != null)
+          if (_isOwner)
             IconButton(
               icon: const Icon(Icons.history),
               onPressed: _openHistory,
               tooltip: 'View History',
             ),
-          if (_isOwner)
+          if (_canEditPaper)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               onPressed: _openEdit,
@@ -555,6 +1181,8 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                _buildReviewBanner(paperStatus),
+                const SizedBox(height: 16),
 
                 // Metadata
                 Container(
@@ -590,13 +1218,27 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                       Row(
                         children: [
                           const Icon(
+                            Icons.flag_outlined,
+                            size: 16,
+                            color: AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 6),
+                          _buildStatusChip(paperStatus),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
                             Icons.calendar_today,
                             size: 16,
                             color: AppColors.textMuted,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'Published: ${_formatDate(_paper!['published_at'])}',
+                            paperStatus == PaperReviewStatus.published
+                                ? 'Published: ${_formatDate(_paper!['published_at'])}'
+                                : 'Created: ${_formatDate(_paper!['created_at'])}',
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textMuted,
@@ -604,6 +1246,26 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           ),
                         ],
                       ),
+                      if (_paper!['submitted_at'] != null) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.schedule_outlined,
+                              size: 16,
+                              color: AppColors.textMuted,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Submitted: ${_formatDate(_paper!['submitted_at'])}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -622,8 +1284,10 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      _buildReactionRow(),
+                      if (PaperReviewStatus.isPublished(paperStatus)) ...[
+                        const SizedBox(height: 12),
+                        _buildReactionRow(),
+                      ],
                       if (_paper!['pdf_file_size'] != null) ...[
                         const SizedBox(height: 8),
                         Row(
@@ -839,7 +1503,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
 
                 const SizedBox(height: 24),
 
-                // Comments Section (Placeholder)
+                // Comments Section
                 Row(
                   children: [
                     Container(
@@ -859,42 +1523,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceFaint,
-                    border: Border.all(color: AppColors.border),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(
-                        Icons.comment_outlined,
-                        size: 40,
-                        color: AppColors.textSubtle,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Comments & Discussion',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Coming soon! You will be able to discuss this paper with other researchers.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSubtle,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
+                _buildDiscussionSection(paperStatus),
               ],
             ),
     );

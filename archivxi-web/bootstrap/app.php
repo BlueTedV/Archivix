@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'api.token' => \App\Http\Middleware\ApiTokenAuth::class,
             'admin.session' => \App\Http\Middleware\RequireAdminSession::class,
+            'web-user.session' => \App\Http\Middleware\RequireWebUserSession::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

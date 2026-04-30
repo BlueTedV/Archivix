@@ -14,6 +14,7 @@ class SupabaseAdminContentService
      *   items: array<int, array<string, mixed>>,
      *   posts: array<int, array<string, mixed>>,
      *   papers: array<int, array<string, mixed>>,
+     *   reviewQueue: array<int, array<string, mixed>>,
      *   stats: array<string, int>
      * }
      */
@@ -31,17 +32,36 @@ class SupabaseAdminContentService
             ->sortByDesc(fn (array $item) => (string) ($item['created_at'] ?? ''))
             ->values()
             ->all();
+        $reviewQueue = collect($papers)
+            ->whereIn('status', ['submitted', 'under_review'])
+            ->sortBy(fn (array $item) => (string) (
+                $item['submitted_at']
+                ?? $item['created_at']
+                ?? ''
+            ))
+            ->values()
+            ->all();
 
         return [
             'items' => $items,
             'posts' => $posts,
             'papers' => $papers,
+            'reviewQueue' => $reviewQueue,
             'stats' => [
                 'total' => count($items),
                 'posts' => count($posts),
                 'papers' => count($papers),
                 'published_papers' => collect($papers)
                     ->where('status', 'published')
+                    ->count(),
+                'submitted_papers' => collect($papers)
+                    ->where('status', 'submitted')
+                    ->count(),
+                'under_review_papers' => collect($papers)
+                    ->where('status', 'under_review')
+                    ->count(),
+                'rejected_papers' => collect($papers)
+                    ->where('status', 'rejected')
                     ->count(),
             ],
         ];
@@ -126,7 +146,7 @@ class SupabaseAdminContentService
             ),
             'paper' => $this->mapEditablePaper($this->getSingleRow('papers', [
                 'id' => 'eq.'.$id,
-                'select' => 'id,title,abstract,category_id,created_at,published_at,views_count,user_id,status,pdf_file_name,pdf_file_size,categories(name)',
+                'select' => 'id,title,abstract,category_id,created_at,submitted_at,reviewed_at,published_at,views_count,user_id,status,rejection_reason,pdf_file_name,pdf_file_size,pdf_url,categories(name)',
                 'limit' => '1',
             ])),
             default => throw new RuntimeException('Unsupported content type.'),
@@ -283,12 +303,28 @@ class SupabaseAdminContentService
         return true;
     }
 
-    public function publishPaper(string $id): void
+    public function markPaperUnderReview(string $id, string $reviewerUserId): void
+    {
+        $this->getEditableContent('paper', $id);
+
+        $this->patchRow('papers', $id, [
+            'status' => 'under_review',
+            'reviewed_at' => null,
+            'reviewed_by' => $reviewerUserId,
+            'published_at' => null,
+            'rejection_reason' => null,
+        ]);
+    }
+
+    public function publishPaper(string $id, string $reviewerUserId): void
     {
         $paper = $this->getEditableContent('paper', $id);
 
         $payload = [
             'status' => 'published',
+            'reviewed_at' => now()->toIso8601String(),
+            'reviewed_by' => $reviewerUserId,
+            'rejection_reason' => null,
         ];
 
         if (($paper['published_at'] ?? null) === null) {
@@ -296,6 +332,22 @@ class SupabaseAdminContentService
         }
 
         $this->patchRow('papers', $id, $payload);
+    }
+
+    public function rejectPaper(
+        string $id,
+        string $rejectionReason,
+        string $reviewerUserId,
+    ): void {
+        $this->getEditableContent('paper', $id);
+
+        $this->patchRow('papers', $id, [
+            'status' => 'rejected',
+            'reviewed_at' => now()->toIso8601String(),
+            'reviewed_by' => $reviewerUserId,
+            'published_at' => null,
+            'rejection_reason' => trim($rejectionReason),
+        ]);
     }
 
     public function deleteContent(string $type, string $id): void
@@ -337,7 +389,7 @@ class SupabaseAdminContentService
     private function fetchPapers(): array
     {
         $rows = $this->getRows('papers', [
-            'select' => 'id,title,abstract,created_at,published_at,views_count,user_id,category_id,status,pdf_file_name,categories(name)',
+            'select' => 'id,title,abstract,created_at,submitted_at,reviewed_at,published_at,views_count,user_id,category_id,status,rejection_reason,pdf_file_name,categories(name)',
             'order' => 'created_at.desc',
         ]);
 
@@ -490,6 +542,12 @@ class SupabaseAdminContentService
             'title' => (string) ($row['title'] ?? 'Untitled Document'),
             'excerpt' => Str::limit(trim((string) ($row['abstract'] ?? '')), 150),
             'created_at' => (string) ($row['created_at'] ?? ''),
+            'submitted_at' => ($row['submitted_at'] ?? null) !== null
+                ? (string) $row['submitted_at']
+                : null,
+            'reviewed_at' => ($row['reviewed_at'] ?? null) !== null
+                ? (string) $row['reviewed_at']
+                : null,
             'published_at' => ($row['published_at'] ?? null) !== null
                 ? (string) $row['published_at']
                 : null,
@@ -498,6 +556,7 @@ class SupabaseAdminContentService
             'category_id' => $row['category_id'] ?? null,
             'category_name' => (string) data_get($row, 'categories.name', 'Uncategorized'),
             'status' => $status,
+            'rejection_reason' => (string) ($row['rejection_reason'] ?? ''),
             'pdf_file_name' => (string) ($row['pdf_file_name'] ?? ''),
         ];
     }
@@ -542,12 +601,19 @@ class SupabaseAdminContentService
                 : null,
             'category_name' => (string) data_get($row, 'categories.name', 'Uncategorized'),
             'created_at' => (string) ($row['created_at'] ?? ''),
+            'submitted_at' => ($row['submitted_at'] ?? null) !== null
+                ? (string) $row['submitted_at']
+                : null,
+            'reviewed_at' => ($row['reviewed_at'] ?? null) !== null
+                ? (string) $row['reviewed_at']
+                : null,
             'published_at' => ($row['published_at'] ?? null) !== null
                 ? (string) $row['published_at']
                 : null,
             'views_count' => (int) ($row['views_count'] ?? 0),
             'user_id' => (string) ($row['user_id'] ?? ''),
             'status' => (string) ($row['status'] ?? 'draft'),
+            'rejection_reason' => (string) ($row['rejection_reason'] ?? ''),
             'pdf_file_name' => (string) ($row['pdf_file_name'] ?? ''),
             'pdf_file_size' => ($row['pdf_file_size'] ?? null) !== null
                 ? (int) $row['pdf_file_size']

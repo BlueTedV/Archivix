@@ -224,8 +224,15 @@
                 @csrf
                 <button type="submit" class="btn btn-danger">Logout</button>
             </form>
+        @elseif (session()->has('web_user'))
+            <a href="{{ route('user.dashboard') }}" class="nav-link">My Dashboard</a>
+            <form action="{{ route('logout') }}" method="POST" style="margin: 0;">
+                @csrf
+                <button type="submit" class="btn btn-primary">Logout</button>
+            </form>
         @else
-            <a href="/login" class="btn btn-primary">Masuk</a>
+            <a href="{{ route('login') }}" class="nav-link">Login</a>
+            <a href="{{ route('register') }}" class="nav-link">Register</a>
         @endif
     </div>
 </nav>

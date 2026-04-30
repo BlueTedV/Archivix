@@ -6,19 +6,19 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class RequireAdminSession
+class RequireWebUserSession
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $adminUser = $request->session()->get('admin_user');
+        $webUser = $request->session()->get('web_user');
 
-        if (! is_array($adminUser) || ($adminUser['role'] ?? null) !== 'admin') {
-            $request->session()->forget(['admin_user', 'is_admin']);
+        if (! is_array($webUser) || ($webUser['id'] ?? null) === null || ($webUser['email'] ?? null) === null) {
+            $request->session()->forget('web_user');
 
             return redirect()
                 ->route('login')
                 ->withErrors([
-                    'email' => 'Masuk dengan akun Supabase yang punya role admin terlebih dahulu.',
+                    'email' => 'Masuk dengan akun Supabase terlebih dahulu.',
                 ]);
         }
 

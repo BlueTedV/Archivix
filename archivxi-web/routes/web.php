@@ -1,16 +1,35 @@
 <?php
 
 use App\Http\Controllers\AdminContentController;
-use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UserAuthController;
+use App\Http\Controllers\UserDashboardController;
 use Illuminate\Support\Facades\Route;
 
-// ── HOME ──────────────────────────────────────────
-// Home publik (user)
 Route::get('/', function () {
     return view('landing');
 });
 
-// Home admin (setelah login)
+Route::get('/login', [UserAuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [UserAuthController::class, 'login'])->name('user.login.submit');
+Route::get('/register', [UserAuthController::class, 'showRegister'])->name('register');
+Route::post('/register', [UserAuthController::class, 'register'])->name('user.register.submit');
+
+Route::middleware('web-user.session')->group(function () {
+    Route::get('/home', [UserDashboardController::class, 'index'])->name('user.dashboard');
+});
+
+Route::post('/logout', [UserAuthController::class, 'logout'])->name('logout');
+
+Route::get('/admin/login', function () {
+    return redirect()->route('login');
+});
+
+Route::post('/admin/login', function () {
+    return redirect()->route('login');
+});
+
+Route::post('/admin/logout', [UserAuthController::class, 'logout']);
+
 Route::get('/home-admin', function () {
     return redirect('/dashboard');
 });
@@ -28,39 +47,24 @@ Route::prefix('dashboard/posts')
         Route::get('/', [AdminContentController::class, 'index'])->name('index');
         Route::get('/{contentType}/{contentId}/edit', [AdminContentController::class, 'edit'])->name('edit');
         Route::put('/{contentType}/{contentId}', [AdminContentController::class, 'update'])->name('update');
+        Route::post('/paper/{contentId}/under-review', [AdminContentController::class, 'markUnderReview'])->name('under-review');
         Route::post('/paper/{contentId}/publish', [AdminContentController::class, 'publish'])->name('publish');
+        Route::post('/paper/{contentId}/reject', [AdminContentController::class, 'reject'])->name('reject');
         Route::delete('/{contentType}/{contentId}', [AdminContentController::class, 'destroy'])->name('destroy');
     });
 
-// ── AUTH ──────────────────────────────────────────
-// Halaman login
-Route::get('/login', [AuthController::class, 'create'])->name('login');
-
-// Proses form login → redirect ke verify
-Route::post('/login', [AuthController::class, 'store']);
-
-// Halaman verifikasi OTP
-Route::get('/verify', function () {
-    return redirect('/login');
-});
-
-// Proses OTP → set session admin → redirect ke home admin
-Route::post('/verify', function () {
-    return redirect('/login');
-});
-
-// Logout → hapus session → balik ke home user
-Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
-
-// ── ADMIN ─────────────────────────────────────────
-// Panel admin (form upload)
 Route::get('/admin', function () {
     return redirect('/dashboard');
 })->middleware('admin.session');
 
-// ── DOWNLOAD ──────────────────────────────────────
+Route::get('/verify', function () {
+    return redirect()->route('login');
+});
+
+Route::post('/verify', function () {
+    return redirect()->route('login');
+});
+
 Route::get('/download', function () {
     return view('donwload');
 });
-
-// ── TEST SUPABASE (hapus nanti setelah koneksi berhasil) ──

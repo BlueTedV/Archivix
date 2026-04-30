@@ -1,18 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/config/app_config.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    AppConfig.validate();
 
-  await Supabase.initialize(
-    url: 'https://lbgqtschsdurqwutsmyl.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZ3F0c2Noc2R1cnF3dXRzbXlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MDA3MjQsImV4cCI6MjA4NjI3NjcyNH0.2RIwCPqFhiOQgBouAGgOK_TPyWmIxQQv_JpKsJYJ5MM',
-  );
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      anonKey: AppConfig.supabaseAnonKey,
+    );
 
-  runApp(const MyApp());
+    runApp(const MyApp());
+  } catch (error, stackTrace) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'archivix startup',
+        context: ErrorDescription('while initializing the app'),
+      ),
+    );
+
+    runApp(StartupErrorApp(error: error));
+  }
 }
 
 final supabase = Supabase.instance.client;
@@ -86,6 +100,59 @@ class MyApp extends StatelessWidget {
       home: supabase.auth.currentSession != null
           ? const HomeScreen()
           : const LoginScreen(),
+    );
+  }
+}
+
+class StartupErrorApp extends StatelessWidget {
+  const StartupErrorApp({super.key, required this.error});
+
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Archivix',
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFFE8E8E8),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'App failed to start',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Archivix could not finish its startup process. '
+                        'Check the error below and verify the Supabase configuration.',
+                      ),
+                      const SizedBox(height: 16),
+                      SelectableText(
+                        error.toString(),
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

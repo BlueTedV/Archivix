@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:path/path.dart' as path;
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/paper_review_status.dart';
 
 class SubmitPaperTab extends StatefulWidget {
   const SubmitPaperTab({super.key});
@@ -33,6 +34,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
   bool _isLoadingCategories = true;
   bool _isUploading = false;
   double _uploadProgress = 0.0;
+  String _currentActionLabel = 'Submit for Review';
 
   final supabase = Supabase.instance.client;
 
@@ -152,55 +154,69 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
     }
   }
 
-  Future<void> _submitPaper() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _submitPaper({required bool saveAsDraft}) async {
+    if (saveAsDraft) {
+      if (_titleController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Add a title before saving this draft.'),
+            backgroundColor: AppColors.errorDark,
+          ),
+        );
+        return;
+      }
+    } else {
+      if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedFile == null && _selectedFileBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a PDF file'),
-          backgroundColor: AppColors.errorDark,
-        ),
-      );
-      return;
+      if (_selectedFile == null && _selectedFileBytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a PDF file'),
+            backgroundColor: AppColors.errorDark,
+          ),
+        );
+        return;
+      }
     }
 
     setState(() {
       _isUploading = true;
       _uploadProgress = 0.0;
+      _currentActionLabel = saveAsDraft ? 'Saving Draft' : 'Submitting';
     });
 
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
 
-      // 1. Upload PDF to storage
-      final fileExt = path.extension(_fileName ?? '.pdf');
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}$fileExt';
-      final filePath = '$userId/$fileName';
+      String? filePath;
+      if (_selectedFile != null || _selectedFileBytes != null) {
+        final fileExt = path.extension(_fileName ?? '.pdf');
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}$fileExt';
+        filePath = '$userId/$fileName';
 
-      setState(() {
-        _uploadProgress = 0.3;
-      });
+        setState(() {
+          _uploadProgress = 0.3;
+        });
 
-      // Upload file based on platform
-      if (kIsWeb) {
-        // Web: upload bytes
-        await supabase.storage
-            .from('papers-pdf')
-            .uploadBinary(filePath, _selectedFileBytes!);
-      } else {
-        // Mobile/Desktop: upload file
-        await supabase.storage
-            .from('papers-pdf')
-            .upload(filePath, _selectedFile!);
+        if (kIsWeb) {
+          await supabase.storage
+              .from('papers-pdf')
+              .uploadBinary(filePath, _selectedFileBytes!);
+        } else {
+          await supabase.storage.from('papers-pdf').upload(filePath, _selectedFile!);
+        }
       }
 
       setState(() {
         _uploadProgress = 0.6;
       });
 
-      // 2. Insert paper record
+      final now = DateTime.now().toIso8601String();
+      final status = saveAsDraft
+          ? PaperReviewStatus.draft
+          : PaperReviewStatus.submitted;
+
       final paperResponse = await supabase
           .from('papers')
           .insert({
@@ -211,8 +227,12 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
             'pdf_url': filePath,
             'pdf_file_name': _fileName,
             'pdf_file_size': _fileSize,
-            'status': 'published',
-            'published_at': DateTime.now().toIso8601String(),
+            'status': status,
+            'submitted_at': saveAsDraft ? null : now,
+            'published_at': null,
+            'reviewed_at': null,
+            'reviewed_by': null,
+            'rejection_reason': null,
           })
           .select()
           .single();
@@ -242,9 +262,15 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Paper submitted successfully!'),
-            backgroundColor: AppColors.success,
+          SnackBar(
+            content: Text(
+              saveAsDraft
+                  ? 'Draft saved. You can submit it for review later.'
+                  : 'Document submitted for admin review.',
+            ),
+            backgroundColor: saveAsDraft
+                ? AppColors.slatePrimary
+                : AppColors.success,
           ),
         );
 
@@ -260,6 +286,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
           _fileName = null;
           _fileSize = null;
           _uploadProgress = 0.0;
+          _currentActionLabel = 'Submit for Review';
         });
       }
     } catch (error) {
@@ -275,6 +302,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
       if (mounted) {
         setState(() {
           _isUploading = false;
+          _currentActionLabel = 'Submit for Review';
         });
       }
     }
@@ -563,6 +591,37 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
               ),
               const SizedBox(height: 24),
 
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      PaperReviewStatus.icon(PaperReviewStatus.submitted),
+                      size: 18,
+                      color: AppColors.slatePrimary,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'New documents are reviewed by admin before they appear in the public feed. Save a draft if you are not ready yet, or submit when everything is complete.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
               // Upload Progress
               if (_isUploading) ...[
                 LinearProgressIndicator(
@@ -575,7 +634,7 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    'Uploading... ${(_uploadProgress * 100).toInt()}%',
+                    '$_currentActionLabel... ${(_uploadProgress * 100).toInt()}%',
                     style: const TextStyle(
                       fontSize: 13,
                       color: AppColors.textMuted,
@@ -586,16 +645,48 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
               ],
 
               // Submit Button
-              SizedBox(
-                height: 42,
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isUploading ? null : _submitPaper,
-                  child: const Text(
-                    'Submit Paper',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 42,
+                      child: OutlinedButton(
+                        onPressed: _isUploading
+                            ? null
+                            : () => _submitPaper(saveAsDraft: true),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.slatePrimary,
+                          side: const BorderSide(color: AppColors.slatePrimary),
+                        ),
+                        child: const Text(
+                          'Save Draft',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 42,
+                      child: ElevatedButton(
+                        onPressed: _isUploading
+                            ? null
+                            : () => _submitPaper(saveAsDraft: false),
+                        child: const Text(
+                          'Submit for Review',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

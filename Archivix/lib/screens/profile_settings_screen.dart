@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/app_colors.dart';
+import '../core/utils/paper_review_status.dart';
 import 'auth/login_screen.dart';
 import 'papers/paper_detail_screen.dart';
 import 'posts/post_detail_screen.dart';
@@ -21,15 +22,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoadingHistory = true;
   String? _historyError;
   _HistoryFilter _historyFilter = _HistoryFilter.all;
+  bool _isLoadingAdminQueue = false;
+  bool _isProcessingAdminAction = false;
+  String? _adminQueueError;
 
   List<Map<String, dynamic>> _userPapers = [];
   List<Map<String, dynamic>> _userPosts = [];
   List<Map<String, dynamic>> _historyItems = [];
+  List<Map<String, dynamic>> _adminQueuePapers = [];
 
   @override
   void initState() {
     super.initState();
-    _loadUserHistory();
+    _refreshAllData();
+  }
+
+  Future<void> _refreshAllData() async {
+    await _loadUserHistory();
   }
 
   Future<void> _loadUserHistory() async {
@@ -61,12 +70,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title,
               abstract,
               created_at,
+              submitted_at,
+              reviewed_at,
+              published_at,
+              status,
+              rejection_reason,
               views_count,
               categories (name),
               paper_authors (name)
             ''')
             .eq('user_id', userId)
-            .eq('status', 'published')
             .order('created_at', ascending: false),
         supabase
             .from('posts')
@@ -119,6 +132,184 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _isLoadingHistory = false;
       });
     }
+  }
+
+  Future<void> _loadAdminQueue() async {
+    if (!_isAdmin(supabase.auth.currentUser)) return;
+
+    setState(() {
+      _isLoadingAdminQueue = true;
+      _adminQueueError = null;
+    });
+
+    try {
+      final response = await supabase
+          .from('papers')
+          .select('''
+            id,
+            title,
+            abstract,
+            created_at,
+            submitted_at,
+            status,
+            rejection_reason,
+            user_id,
+            categories (name),
+            paper_authors (name)
+          ''')
+          .inFilter('status', PaperReviewStatus.reviewQueueStatuses)
+          .order('submitted_at', ascending: true)
+          .order('created_at', ascending: true);
+
+      if (!mounted) return;
+
+      setState(() {
+        _adminQueuePapers = List<Map<String, dynamic>>.from(response);
+        _isLoadingAdminQueue = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _adminQueueError = error.toString();
+        _isLoadingAdminQueue = false;
+      });
+    }
+  }
+
+  Future<void> _updatePaperReviewStatus({
+    required String paperId,
+    required String targetStatus,
+    String? rejectionReason,
+  }) async {
+    if (_isProcessingAdminAction) return;
+
+    setState(() {
+      _isProcessingAdminAction = true;
+    });
+
+    try {
+      final payload = <String, dynamic>{
+        'status': targetStatus,
+        'reviewed_at': DateTime.now().toIso8601String(),
+        'reviewed_by': supabase.auth.currentUser?.id,
+        'rejection_reason': null,
+      };
+
+      if (targetStatus == PaperReviewStatus.underReview) {
+        payload['published_at'] = null;
+      } else if (targetStatus == PaperReviewStatus.published) {
+        payload['published_at'] = DateTime.now().toIso8601String();
+      } else if (targetStatus == PaperReviewStatus.rejected) {
+        payload['published_at'] = null;
+        payload['rejection_reason'] = rejectionReason?.trim();
+      }
+
+      await supabase.from('papers').update(payload).eq('id', paperId);
+      await Future.wait([_loadAdminQueue(), _loadUserHistory()]);
+
+      if (!mounted) return;
+      _showMessage(
+        'Document moved to ${PaperReviewStatus.label(targetStatus)}.',
+        targetStatus == PaperReviewStatus.rejected
+            ? AppColors.errorDark
+            : AppColors.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage('Could not update review status: $error', AppColors.errorDark);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAdminAction = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showRejectDialog(Map<String, dynamic> paper) async {
+    final controller = TextEditingController();
+
+    Future<void> dismissDialogSafely(
+      BuildContext dialogContext, {
+      String? result,
+    }) async {
+      FocusScope.of(dialogContext).unfocus();
+      if (!dialogContext.mounted) return;
+      Navigator.of(dialogContext).pop(result);
+    }
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+            side: const BorderSide(color: AppColors.border),
+          ),
+          title: const Text('Reject Document'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${paper['title'] ?? 'Untitled Document'}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Add a short reason so the author knows what to fix.',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: controller,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText: 'Example: Please improve the abstract and replace the PDF with the final revision.',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async => dismissDialogSafely(dialogContext),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final value = controller.text.trim();
+                if (value.isEmpty) {
+                  return;
+                }
+                await dismissDialogSafely(dialogContext, result: value);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.errorDark,
+              ),
+              child: const Text('Reject'),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (reason == null || reason.trim().isEmpty) return;
+
+    await _updatePaperReviewStatus(
+      paperId: '${paper['id']}',
+      targetStatus: PaperReviewStatus.rejected,
+      rejectionReason: reason,
+    );
   }
 
   Future<void> _signOut() async {
@@ -210,14 +401,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Profile & Settings'),
         actions: [
           IconButton(
-            onPressed: _loadUserHistory,
+            onPressed: _refreshAllData,
             tooltip: 'Refresh activity',
             icon: const Icon(Icons.refresh, size: 20),
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadUserHistory,
+        onRefresh: _refreshAllData,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isCompact = constraints.maxWidth < 900;
@@ -459,7 +650,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildCommandButton(
                     icon: Icons.refresh,
                     label: 'Refresh Activity',
-                    onPressed: _loadUserHistory,
+                    onPressed: _refreshAllData,
                     color: AppColors.slatePrimary,
                     filled: true,
                   ),
@@ -492,7 +683,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) {
     return _buildWindowPanel(
       title: 'ACTIVITY LEDGER',
-      subtitle: 'Published documents and posted questions',
+      subtitle: 'Your drafts, submissions, published documents, and questions',
       icon: Icons.history,
       accentColor: AppColors.slatePrimary,
       trailing: _buildHistoryFilterBar(),
@@ -530,6 +721,230 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: _buildHistoryPanel(visibleHistory),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAdminReviewCenter() {
+    return _buildWindowPanel(
+      title: 'REVIEW QUEUE',
+      subtitle: 'Admin review for submitted documents',
+      icon: Icons.fact_check_outlined,
+      accentColor: AppColors.amberDark,
+      trailing: _buildInfoBadge(
+        icon: Icons.inventory_2_outlined,
+        label: 'Pending',
+        value: '${_adminQueuePapers.length} docs',
+      ),
+      child: Container(
+        height: 320,
+        decoration: _innerPanelDecoration(
+          backgroundColor: Colors.white,
+          borderColor: const Color(0xFFB5BBC6),
+        ),
+        child: _buildAdminQueuePanel(),
+      ),
+    );
+  }
+
+  Widget _buildAdminQueuePanel() {
+    if (_isLoadingAdminQueue) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_adminQueueError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                color: AppColors.errorDark,
+                size: 40,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _adminQueueError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.errorDark,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _loadAdminQueue,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_adminQueuePapers.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.inbox_outlined,
+                color: AppColors.textSubtle,
+                size: 40,
+              ),
+              SizedBox(height: 10),
+              Text(
+                'No documents waiting for review',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Scrollbar(
+      thumbVisibility: true,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _adminQueuePapers.length,
+        itemBuilder: (context, index) {
+          final paper = _adminQueuePapers[index];
+          final status = PaperReviewStatus.normalize(paper['status']);
+          final category = paper['categories'] as Map<String, dynamic>?;
+          final authors = paper['paper_authors'] as List<dynamic>?;
+          final abstract = '${paper['abstract'] ?? ''}'.trim();
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: _innerPanelDecoration(
+              backgroundColor: AppColors.surfaceWhite,
+              borderColor: PaperReviewStatus.borderColor(status),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${paper['title'] ?? 'Untitled Document'}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _getAuthors(authors),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildPaperStatusTag(status),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildMetaTag(
+                      label: category?['name'] ?? 'Uncategorized',
+                      textColor: AppColors.slatePrimary,
+                      backgroundColor: AppColors.surfaceLight,
+                      borderColor: AppColors.border,
+                    ),
+                    _buildMetaTag(
+                      label: 'Owner ${('${paper['user_id']}').substring(0, 8)}',
+                      textColor: AppColors.textSecondary,
+                      backgroundColor: Colors.white,
+                      borderColor: AppColors.border,
+                    ),
+                    _buildMetaTag(
+                      label:
+                          'Submitted ${_formatHistoryDate('${paper['submitted_at'] ?? paper['created_at']}')}',
+                      textColor: AppColors.textSecondary,
+                      backgroundColor: Colors.white,
+                      borderColor: AppColors.border,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  abstract.isEmpty
+                      ? 'No abstract provided yet.'
+                      : (abstract.length > 160
+                            ? '${abstract.substring(0, 160)}...'
+                            : abstract),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    if (status != PaperReviewStatus.underReview)
+                      _buildCommandButton(
+                        icon: Icons.rule_folder_outlined,
+                        label: 'Under Review',
+                        onPressed: _isProcessingAdminAction
+                            ? null
+                            : () => _updatePaperReviewStatus(
+                                paperId: '${paper['id']}',
+                                targetStatus: PaperReviewStatus.underReview,
+                              ),
+                        color: AppColors.slatePrimary,
+                      ),
+                    _buildCommandButton(
+                      icon: Icons.verified_outlined,
+                      label: 'Publish',
+                      onPressed: _isProcessingAdminAction
+                          ? null
+                          : () => _updatePaperReviewStatus(
+                              paperId: '${paper['id']}',
+                              targetStatus: PaperReviewStatus.published,
+                            ),
+                      color: AppColors.success,
+                      filled: true,
+                    ),
+                    _buildCommandButton(
+                      icon: Icons.block_outlined,
+                      label: 'Reject',
+                      onPressed: _isProcessingAdminAction
+                          ? null
+                          : () => _showRejectDialog(paper),
+                      color: AppColors.errorDark,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -641,15 +1056,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmPasswordController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     var isLoading = false;
-    final navigator = Navigator.of(context);
-
     Future<void> dismissDialogSafely(BuildContext dialogContext) async {
-      FocusManager.instance.primaryFocus?.unfocus();
-      await Future<void>.delayed(const Duration(milliseconds: 16));
-
-      if (dialogContext.mounted && navigator.canPop()) {
-        navigator.pop();
-      }
+      FocusScope.of(dialogContext).unfocus();
+      if (!dialogContext.mounted) return;
+      Navigator.of(dialogContext).pop();
     }
 
     showDialog<void>(
@@ -1236,6 +1646,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 date: _formatHistoryDate('${item['created_at']}'),
                 views: item['views_count'] ?? 0,
                 abstract: '${item['abstract'] ?? ''}',
+                status: '${item['status'] ?? PaperReviewStatus.draft}',
+                rejectionReason: item['rejection_reason'] as String?,
               ),
             );
           }
@@ -1285,7 +1697,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           ElevatedButton(
-            onPressed: _loadUserHistory,
+            onPressed: _refreshAllData,
             child: const Text('Retry'),
           ),
         ],
@@ -1301,10 +1713,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     };
 
     final subtitle = switch (_historyFilter) {
-      _HistoryFilter.papers => 'Documents you publish will appear here.',
+      _HistoryFilter.papers =>
+        'Your drafts, review submissions, and published documents appear here.',
       _HistoryFilter.posts => 'Questions you post will appear here.',
       _HistoryFilter.all =>
-        'Your published documents and posted questions will appear here.',
+        'Your document workflow and posted questions will appear here.',
     };
 
     return Container(
@@ -1404,6 +1817,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String date,
     required int views,
     required String abstract,
+    required String status,
+    required String? rejectionReason,
   }) {
     final preview =
         abstract.trim().isEmpty ? 'No abstract provided.' : abstract;
@@ -1427,21 +1842,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.description_outlined,
+                Icon(
+                  PaperReviewStatus.icon(status),
                   size: 16,
-                  color: AppColors.slatePrimary,
+                  color: PaperReviewStatus.textColor(status),
                 ),
                 const SizedBox(width: 6),
-                const Text(
+                Text(
                   'Document',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.slatePrimary,
+                    color: PaperReviewStatus.textColor(status),
                     letterSpacing: 0.5,
                   ),
                 ),
+                const Spacer(),
+                _buildPaperStatusTag(status),
               ],
             ),
             const SizedBox(height: 8),
@@ -1467,6 +1884,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
+            if (PaperReviewStatus.normalize(status) ==
+                    PaperReviewStatus.rejected &&
+                rejectionReason != null &&
+                rejectionReason.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.errorSurface,
+                  border: Border.all(color: AppColors.errorBorder),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Admin feedback: $rejectionReason',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.errorDark,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -1477,20 +1917,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   borderColor: AppColors.border,
                 ),
                 const SizedBox(width: 8),
-                const Icon(
-                  Icons.visibility,
-                  size: 12,
-                  color: AppColors.textSubtle,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '$views',
-                  style: const TextStyle(
-                    fontSize: 11,
+                if (PaperReviewStatus.isPublished(status)) ...[
+                  const Icon(
+                    Icons.visibility,
+                    size: 12,
                     color: AppColors.textSubtle,
                   ),
-                ),
-                const Spacer(),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$views',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSubtle,
+                    ),
+                  ),
+                ] else
+                  Expanded(
+                    child: Text(
+                      PaperReviewStatus.ownerDescription(status),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSubtle,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
                 Text(
                   date,
                   style: const TextStyle(
@@ -1626,6 +2079,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
           fontSize: 11,
           color: textColor,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaperStatusTag(String status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: PaperReviewStatus.backgroundColor(status),
+        border: Border.all(color: PaperReviewStatus.borderColor(status)),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        PaperReviewStatus.label(status),
+        style: TextStyle(
+          fontSize: 11,
+          color: PaperReviewStatus.textColor(status),
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

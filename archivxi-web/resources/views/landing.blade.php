@@ -269,8 +269,11 @@
             <div class="hero-actions">
                 @if (session()->has('admin_user'))
                     <a href="{{ route('dashboard') }}" class="btn btn-primary">Buka Dashboard</a>
+                @elseif (session()->has('web_user'))
+                    <a href="{{ route('user.dashboard') }}" class="btn btn-primary">Buka Dashboard</a>
                 @else
-                    <a href="/login" class="btn btn-primary">Masuk Sekarang</a>
+                    <a href="{{ route('login') }}" class="btn btn-primary">Masuk Sekarang</a>
+                    <a href="{{ route('register') }}" class="btn btn-secondary">Buat Akun</a>
                 @endif
                 <a href="/download" class="btn btn-secondary">Lihat Download</a>
             </div>
@@ -302,12 +305,12 @@
                         <span>Baca gambaran singkat tentang fungsi Archivix dan apa yang akan tersedia di web version.</span>
                     </div>
                     <div class="stack-item">
-                        <strong>2. Login dengan akun Supabase</strong>
-                        <span>Gunakan email dan password yang sama seperti di aplikasi mobile.</span>
+                        <strong>2. Login dengan satu akun</strong>
+                        <span>Semua akun memakai Supabase login yang sama, lalu dashboard akan menyesuaikan berdasarkan role akunmu.</span>
                     </div>
                     <div class="stack-item">
                         <strong>3. Masuk ke dashboard</strong>
-                        <span>Lihat identitas akun dan area kerja yang nantinya bisa diisi fitur unggah, statistik, dan manajemen konten.</span>
+                        <span>Lihat identitas akun dan area kerja yang nantinya bisa diisi fitur unggah, statistik, dan status dokumen sesuai aksesmu.</span>
                     </div>
                 </div>
             </div>
@@ -350,13 +353,15 @@
     <section class="cta-band">
         <div>
             <h3>Siap lanjut ke dashboard?</h3>
-            <p>Masuk dengan akun Supabase untuk mencoba flow web version yang baru.</p>
+            <p>Masuk dengan akun Supabase Archivix untuk membuka dashboard yang sesuai dengan role akunmu.</p>
         </div>
 
         @if (session()->has('admin_user'))
             <a href="{{ route('dashboard') }}" class="btn btn-primary">Ke Dashboard</a>
+        @elseif (session()->has('web_user'))
+            <a href="{{ route('user.dashboard') }}" class="btn btn-primary">Ke Dashboard</a>
         @else
-            <a href="/login" class="btn btn-primary">Masuk</a>
+            <a href="{{ route('login') }}" class="btn btn-primary">Masuk</a>
         @endif
     </section>
 </div>
