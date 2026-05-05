@@ -1068,172 +1068,245 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (_, setDialogState) {
-            return AlertDialog(
+            return Dialog(
+              insetPadding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(4),
                 side: const BorderSide(color: AppColors.border),
               ),
-              titlePadding: EdgeInsets.zero,
-              title: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.slatePrimary, Color(0xFF66758D)],
-                  ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.lock_outline, size: 18, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      'Change Password',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              content: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildDialogFieldLabel('Current Password'),
-                    TextFormField(
-                      controller: currentPasswordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter current password',
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) return 'Required';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _buildDialogFieldLabel('New Password'),
-                    TextFormField(
-                      controller: newPasswordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter new password',
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) return 'Required';
-                        if (value.length < 6) {
-                          return 'Must be at least 6 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _buildDialogFieldLabel('Confirm New Password'),
-                    TextFormField(
-                      controller: confirmPasswordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        hintText: 'Confirm new password',
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) return 'Required';
-                        if (value != newPasswordController.text) {
-                          return 'Passwords do not match';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isLoading
-                      ? null
-                      : () async => dismissDialogSafely(dialogContext),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: AppColors.textMuted),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: isLoading
-                      ? null
-                      : () async {
-                          if (!formKey.currentState!.validate()) return;
-
-                          setDialogState(() => isLoading = true);
-
-                          try {
-                            final email = supabase.auth.currentUser?.email;
-                            if (email == null) {
-                              throw Exception('User not logged in');
-                            }
-
-                            await supabase.auth.signInWithPassword(
-                              email: email,
-                              password: currentPasswordController.text,
-                            );
-
-                            await supabase.auth.updateUser(
-                              UserAttributes(
-                                password: newPasswordController.text,
-                              ),
-                            );
-
-                            if (!mounted || !dialogContext.mounted) return;
-                            await dismissDialogSafely(dialogContext);
-                            if (!mounted) return;
-                            _showMessage(
-                              'Password changed successfully!',
-                              AppColors.success,
-                            );
-                          } on AuthException catch (error) {
-                            if (!mounted) return;
-                            _showMessage(error.message, AppColors.errorDark);
-                            setDialogState(() => isLoading = false);
-                          } catch (error) {
-                            if (!mounted) return;
-                            _showMessage(
-                              'Error: ${error.toString()}',
-                              AppColors.errorDark,
-                            );
-                            setDialogState(() => isLoading = false);
-                          }
-                        },
-                  child: isLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [AppColors.slatePrimary, Color(0xFF66758D)],
                           ),
-                        )
-                      : const Text('Save Password'),
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(4),
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.lock_outline, size: 18, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text(
+                              'Change Password',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Form(
+                          key: formKey,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildDialogFieldLabel('Current Password'),
+                              TextFormField(
+                                controller: currentPasswordController,
+                                obscureText: true,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter current password',
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) return 'Required';
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 14),
+                              _buildDialogFieldLabel('New Password'),
+                              TextFormField(
+                                controller: newPasswordController,
+                                obscureText: true,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter new password',
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) return 'Required';
+                                  if (value.length < 6) {
+                                    return 'Must be at least 6 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 14),
+                              _buildDialogFieldLabel('Confirm New Password'),
+                              TextFormField(
+                                controller: confirmPasswordController,
+                                obscureText: true,
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (_) async {
+                                  if (isLoading) return;
+                                  if (!formKey.currentState!.validate()) return;
+
+                                  setDialogState(() => isLoading = true);
+
+                                  try {
+                                    final email = supabase.auth.currentUser?.email;
+                                    if (email == null) {
+                                      throw Exception('User not logged in');
+                                    }
+
+                                    await supabase.auth.signInWithPassword(
+                                      email: email,
+                                      password: currentPasswordController.text,
+                                    );
+
+                                    await supabase.auth.updateUser(
+                                      UserAttributes(
+                                        password: newPasswordController.text,
+                                      ),
+                                    );
+
+                                    if (!mounted || !dialogContext.mounted) return;
+                                    await dismissDialogSafely(dialogContext);
+                                    if (!mounted) return;
+                                    _showMessage(
+                                      'Password changed successfully!',
+                                      AppColors.success,
+                                    );
+                                  } on AuthException catch (error) {
+                                    if (!mounted) return;
+                                    _showMessage(error.message, AppColors.errorDark);
+                                    setDialogState(() => isLoading = false);
+                                  } catch (error) {
+                                    if (!mounted) return;
+                                    _showMessage(
+                                      'Error: ${error.toString()}',
+                                      AppColors.errorDark,
+                                    );
+                                    setDialogState(() => isLoading = false);
+                                  }
+                                },
+                                decoration: const InputDecoration(
+                                  hintText: 'Confirm new password',
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) return 'Required';
+                                  if (value != newPasswordController.text) {
+                                    return 'Passwords do not match';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: isLoading
+                                  ? null
+                                  : () async => dismissDialogSafely(dialogContext),
+                              child: const Text(
+                                'Cancel',
+                                style: TextStyle(color: AppColors.textMuted),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: isLoading
+                                  ? null
+                                  : () async {
+                                      if (!formKey.currentState!.validate()) return;
+
+                                      setDialogState(() => isLoading = true);
+
+                                      try {
+                                        final email = supabase.auth.currentUser?.email;
+                                        if (email == null) {
+                                          throw Exception('User not logged in');
+                                        }
+
+                                        await supabase.auth.signInWithPassword(
+                                          email: email,
+                                          password: currentPasswordController.text,
+                                        );
+
+                                        await supabase.auth.updateUser(
+                                          UserAttributes(
+                                            password: newPasswordController.text,
+                                          ),
+                                        );
+
+                                        if (!mounted || !dialogContext.mounted) return;
+                                        await dismissDialogSafely(dialogContext);
+                                        if (!mounted) return;
+                                        _showMessage(
+                                          'Password changed successfully!',
+                                          AppColors.success,
+                                        );
+                                      } on AuthException catch (error) {
+                                        if (!mounted) return;
+                                        _showMessage(
+                                          error.message,
+                                          AppColors.errorDark,
+                                        );
+                                        setDialogState(() => isLoading = false);
+                                      } catch (error) {
+                                        if (!mounted) return;
+                                        _showMessage(
+                                          'Error: ${error.toString()}',
+                                          AppColors.errorDark,
+                                        );
+                                        setDialogState(() => isLoading = false);
+                                      }
+                                    },
+                              child: isLoading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
+                                        ),
+                                      ),
+                                    )
+                                  : const Text('Save Password'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             );
           },
         );

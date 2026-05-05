@@ -8,10 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_colors.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({
-    super.key,
-    required this.initialProfile,
-  });
+  const EditProfileScreen({super.key, required this.initialProfile});
 
   final Map<String, dynamic>? initialProfile;
 
@@ -56,7 +53,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }) async {
     final user = supabase.auth.currentUser;
     if (user == null) {
-      _showMessage('Please sign in again to update your profile.', AppColors.errorDark);
+      _showMessage(
+        'Please sign in again to update your profile.',
+        AppColors.errorDark,
+      );
       return false;
     }
 
@@ -74,7 +74,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     if (fullName.length > 80) {
-      _showMessage('Real name must be 80 characters or fewer.', AppColors.errorDark);
+      _showMessage(
+        'Real name must be 80 characters or fewer.',
+        AppColors.errorDark,
+      );
       return false;
     }
 
@@ -102,7 +105,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             'bio': bio.isEmpty ? null : bio,
             'avatar_path': nextAvatarPath,
           })
-          .select('id, username, full_name, bio, avatar_path, created_at, updated_at')
+          .select(
+            'id, username, full_name, bio, avatar_path, created_at, updated_at',
+          )
           .single();
 
       await supabase.auth.updateUser(
@@ -156,7 +161,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _pickAvatar() async {
     final user = supabase.auth.currentUser;
     if (user == null) {
-      _showMessage('Please sign in again to update your profile photo.', AppColors.errorDark);
+      _showMessage(
+        'Please sign in again to update your profile photo.',
+        AppColors.errorDark,
+      );
       return;
     }
 
@@ -172,7 +180,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final file = result.files.single;
       if (file.path == null) {
-        _showMessage('Could not access the selected image file.', AppColors.errorDark);
+        _showMessage(
+          'Could not access the selected image file.',
+          AppColors.errorDark,
+        );
         return;
       }
 
@@ -211,14 +222,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _error = null;
       });
 
-      await supabase.storage.from('profile-avatars').upload(
-        storagePath,
-        File(croppedFile.path),
-        fileOptions: FileOptions(
-          upsert: false,
-          contentType: 'image/jpeg',
-        ),
-      );
+      await supabase.storage
+          .from('profile-avatars')
+          .upload(
+            storagePath,
+            File(croppedFile.path),
+            fileOptions: FileOptions(upsert: false, contentType: 'image/jpeg'),
+          );
 
       final saved = await _saveProfile(
         avatarPathOverride: storagePath,
@@ -263,7 +273,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
 
     try {
-      await supabase.storage.from('profile-avatars').remove([currentAvatarPath]);
+      await supabase.storage.from('profile-avatars').remove([
+        currentAvatarPath,
+      ]);
     } catch (_) {
       // If the image is already missing, still clear the profile reference.
     }
@@ -310,9 +322,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     final updatedAt = (_profile?['updated_at'] as String?) ?? '';
-    final publicUrl = supabase.storage.from('profile-avatars').getPublicUrl(
-      avatarPath,
-    );
+    final publicUrl = supabase.storage
+        .from('profile-avatars')
+        .getPublicUrl(avatarPath);
     return '$publicUrl?v=${Uri.encodeComponent(updatedAt)}';
   }
 
@@ -339,7 +351,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         title: const Text('Edit Profile'),
         actions: [
           TextButton(
-            onPressed: _isSaving || _isUploadingAvatar ? null : () => _saveProfile(),
+            onPressed: _isSaving || _isUploadingAvatar
+                ? null
+                : () => _saveProfile(),
             child: Text(
               _isSaving ? 'Saving...' : 'Save',
               style: const TextStyle(
@@ -383,7 +397,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           Image.network(
                             _avatarUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _buildAvatarFallback(),
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildAvatarFallback(),
                           )
                         else
                           _buildAvatarFallback(),
@@ -506,7 +521,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   const SizedBox(height: 14),
                   const Text(
-                    'Short Bio',
+                    'Description',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -520,9 +535,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     maxLines: 5,
                     maxLength: 240,
                     decoration: const InputDecoration(
-                      hintText: 'Share your field, interests, or what you research.',
+                      hintText:
+                          'Share your field, interests, or what you research. This appears on your public profile.',
                       alignLabelWithHint: true,
                     ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'This is the public description other users will see when they open your profile from search.',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
                   ),
                 ],
               ),

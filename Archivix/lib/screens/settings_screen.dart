@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/app_colors.dart';
+import '../core/services/paper_comment_service.dart';
+import '../core/services/post_comment_service.dart';
 import '../core/utils/paper_review_status.dart';
 import 'edit_profile_screen.dart';
 import 'auth/login_screen.dart';
@@ -23,6 +25,8 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final supabase = Supabase.instance.client;
+  final _paperCommentService = PaperCommentService();
+  final _postCommentService = PostCommentService();
   final ScrollController _historyScrollController = ScrollController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _fullNameController = TextEditingController();
@@ -81,7 +85,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final response = await supabase
           .from('profiles')
-          .select('id, username, full_name, bio, avatar_path, created_at, updated_at')
+          .select(
+            'id, username, full_name, bio, avatar_path, created_at, updated_at',
+          )
           .eq('id', user.id)
           .maybeSingle();
 
@@ -172,6 +178,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final posts = List<Map<String, dynamic>>.from(
         responses[1] as List<dynamic>,
       );
+      await _paperCommentService.attachCommentCounts(papers);
+      await _postCommentService.attachCommentCounts(posts);
 
       for (final paper in papers) {
         paper['content_type'] = 'paper';
@@ -212,7 +220,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) async {
     final user = supabase.auth.currentUser;
     if (user == null) {
-      _showMessage('Please sign in again to update your profile.', AppColors.errorDark);
+      _showMessage(
+        'Please sign in again to update your profile.',
+        AppColors.errorDark,
+      );
       return false;
     }
 
@@ -230,7 +241,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     if (fullName.length > 80) {
-      _showMessage('Real name must be 80 characters or fewer.', AppColors.errorDark);
+      _showMessage(
+        'Real name must be 80 characters or fewer.',
+        AppColors.errorDark,
+      );
       return false;
     }
 
@@ -260,7 +274,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final savedProfile = await supabase
           .from('profiles')
           .upsert(payload)
-          .select('id, username, full_name, bio, avatar_path, created_at, updated_at')
+          .select(
+            'id, username, full_name, bio, avatar_path, created_at, updated_at',
+          )
           .single();
 
       await supabase.auth.updateUser(
@@ -311,7 +327,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _pickAvatar() async {
     final user = supabase.auth.currentUser;
     if (user == null) {
-      _showMessage('Please sign in again to update your profile photo.', AppColors.errorDark);
+      _showMessage(
+        'Please sign in again to update your profile photo.',
+        AppColors.errorDark,
+      );
       return;
     }
 
@@ -327,14 +346,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       final file = result.files.single;
       if (file.path == null) {
-        _showMessage('Could not access the selected image file.', AppColors.errorDark);
+        _showMessage(
+          'Could not access the selected image file.',
+          AppColors.errorDark,
+        );
         return;
       }
 
       final extension = p.extension(file.name).toLowerCase();
       final contentType = _contentTypeForExtension(extension);
       if (contentType == null) {
-        _showMessage('Please select a JPG, PNG, or WEBP image.', AppColors.errorDark);
+        _showMessage(
+          'Please select a JPG, PNG, or WEBP image.',
+          AppColors.errorDark,
+        );
         return;
       }
 
@@ -345,14 +370,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _profileError = null;
       });
 
-      await supabase.storage.from('profile-avatars').upload(
-        storagePath,
-        File(file.path!),
-        fileOptions: FileOptions(
-          upsert: true,
-          contentType: contentType,
-        ),
-      );
+      await supabase.storage
+          .from('profile-avatars')
+          .upload(
+            storagePath,
+            File(file.path!),
+            fileOptions: FileOptions(upsert: true, contentType: contentType),
+          );
 
       final saved = await _saveProfile(
         avatarPathOverride: storagePath,
@@ -387,7 +411,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
-      await supabase.storage.from('profile-avatars').remove([currentAvatarPath]);
+      await supabase.storage.from('profile-avatars').remove([
+        currentAvatarPath,
+      ]);
     } catch (_) {
       // If the object is already gone, we still want to clear the profile field.
     }
@@ -456,9 +482,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await supabase.auth.signOut();
     if (!mounted) return;
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
   void _showMessage(String message, Color backgroundColor) {
@@ -529,10 +555,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     constraints: const BoxConstraints(maxWidth: 1120),
                     child: Column(
                       children: [
-                        _buildRetroOverview(
-                          user: user,
-                          isCompact: isCompact,
-                        ),
+                        _buildRetroOverview(user: user, isCompact: isCompact),
                         const SizedBox(height: 18),
                         _buildActivityCenter(
                           visibleHistory: _filteredHistoryItems,
@@ -554,15 +577,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildRetroOverview({
-    required User? user,
-    required bool isCompact,
-  }) {
+  Widget _buildRetroOverview({required User? user, required bool isCompact}) {
     final identityPanel = _buildIdentityPanel(user: user);
-    final summaryPanel = _buildSummaryPanel(
-      user: user,
-      isCompact: isCompact,
-    );
+    final summaryPanel = _buildSummaryPanel(user: user, isCompact: isCompact);
 
     return _buildWindowPanel(
       title: 'PROFILE CONSOLE',
@@ -674,9 +691,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          _buildFactRow('Username', username?.isNotEmpty == true ? '@$username' : 'Not set'),
+          _buildFactRow(
+            'Username',
+            username?.isNotEmpty == true ? '@$username' : 'Not set',
+          ),
           const SizedBox(height: 8),
-          _buildFactRow('Real Name', fullName?.isNotEmpty == true ? fullName! : 'Not set'),
+          _buildFactRow(
+            'Real Name',
+            fullName?.isNotEmpty == true ? fullName! : 'Not set',
+          ),
           const SizedBox(height: 8),
           _buildFactRow('Member Since', _formatDate(user?.createdAt)),
           const SizedBox(height: 8),
@@ -704,10 +727,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSummaryPanel({
-    required User? user,
-    required bool isCompact,
-  }) {
+  Widget _buildSummaryPanel({required User? user, required bool isCompact}) {
     return Column(
       children: [
         Wrap(
@@ -858,7 +878,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) {
     return _buildWindowPanel(
       title: 'PROFILE STUDIO',
-      subtitle: 'Customize your name, handle, photo, and short bio',
+      subtitle: 'Customize your name, handle, photo, and public description',
       icon: Icons.badge_outlined,
       accentColor: AppColors.slatePrimary,
       child: _isLoadingProfile
@@ -976,20 +996,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               username != null && username.isNotEmpty
                   ? '@$username'
                   : 'No username yet',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textMuted,
-              ),
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
           ),
           const SizedBox(height: 14),
-          _buildFactRow('Real Name', fullName?.isNotEmpty == true ? fullName! : 'Not set'),
+          _buildFactRow(
+            'Real Name',
+            fullName?.isNotEmpty == true ? fullName! : 'Not set',
+          ),
           const SizedBox(height: 8),
           _buildFactRow('Email', user?.email ?? 'No email on record'),
           const SizedBox(height: 8),
           _buildFactRow(
-            'Bio',
-            bio?.isNotEmpty == true ? bio! : 'Introduce yourself to the research community.',
+            'Description',
+            bio?.isNotEmpty == true
+                ? bio!
+                : 'Introduce yourself to the research community.',
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -1061,16 +1083,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          _buildDialogFieldLabel('Short Bio'),
+          _buildDialogFieldLabel('Description'),
           TextField(
             controller: _bioController,
             minLines: 3,
             maxLines: 5,
             maxLength: 240,
             decoration: const InputDecoration(
-              hintText: 'Share your field, interests, or what you research.',
+              hintText:
+                  'Share your field, interests, or what you research. This appears on your public profile.',
               alignLabelWithHint: true,
             ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'This is the public description other users will see when they open your profile from search.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -1097,15 +1125,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildFactRow(
-            'Display Name',
-            _profileDisplayName(user),
-          ),
+          _buildFactRow('Display Name', _profileDisplayName(user)),
           const SizedBox(height: 8),
-          _buildFactRow(
-            'Comment Label',
-            _profileCommentLabel(user),
-          ),
+          _buildFactRow('Comment Label', _profileCommentLabel(user)),
         ],
       ),
     );
@@ -1261,9 +1283,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   colors: [accentColor, accentColor.withOpacity(0.84)],
                 ),
                 border: Border(
-                  bottom: BorderSide(
-                    color: Colors.black.withOpacity(0.18),
-                  ),
+                  bottom: BorderSide(color: Colors.black.withOpacity(0.18)),
                 ),
               ),
               child: Row(
@@ -1626,6 +1646,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 category: category?['name'] ?? 'Uncategorized',
                 date: _formatHistoryDate('${item['created_at']}'),
                 views: item['views_count'] ?? 0,
+                commentsCount: item['comments_count'] ?? 0,
                 abstract: '${item['abstract'] ?? ''}',
                 status: '${item['status'] ?? PaperReviewStatus.draft}',
                 rejectionReason: item['rejection_reason'] as String?,
@@ -1644,6 +1665,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               category: category?['name'] ?? 'Uncategorized',
               date: _formatHistoryDate('${item['created_at']}'),
               views: item['views_count'] ?? 0,
+              commentsCount: item['comments_count'] ?? 0,
             ),
           );
         },
@@ -1797,12 +1819,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String category,
     required String date,
     required int views,
+    required int commentsCount,
     required String abstract,
     required String status,
     required String? rejectionReason,
   }) {
-    final preview =
-        abstract.trim().isEmpty ? 'No abstract provided.' : abstract;
+    final preview = abstract.trim().isEmpty
+        ? 'No abstract provided.'
+        : abstract;
 
     return InkWell(
       onTap: () {
@@ -1912,6 +1936,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: AppColors.textSubtle,
                     ),
                   ),
+                  const SizedBox(width: 10),
+                  const Icon(
+                    Icons.comment_outlined,
+                    size: 12,
+                    color: AppColors.textSubtle,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$commentsCount',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSubtle,
+                    ),
+                  ),
                 ] else
                   Expanded(
                     child: Text(
@@ -1947,6 +1985,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String category,
     required String date,
     required int views,
+    required int commentsCount,
   }) {
     final preview = content.trim().isEmpty ? 'No details provided.' : content;
 
@@ -2020,6 +2059,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 4),
                 Text(
                   '$views',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSubtle,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Icon(
+                  Icons.comment_outlined,
+                  size: 12,
+                  color: AppColors.textSubtle,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '$commentsCount',
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textSubtle,
@@ -2111,7 +2164,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Image.network(
               avatarUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _buildAvatarFallback(initials, size),
+              errorBuilder: (_, __, ___) =>
+                  _buildAvatarFallback(initials, size),
             )
           else
             _buildAvatarFallback(initials, size),
@@ -2188,9 +2242,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     final updatedAt = (_profile?['updated_at'] as String?) ?? '';
-    final publicUrl = supabase.storage.from('profile-avatars').getPublicUrl(
-      avatarPath,
-    );
+    final publicUrl = supabase.storage
+        .from('profile-avatars')
+        .getPublicUrl(avatarPath);
     return '$publicUrl?v=${Uri.encodeComponent(updatedAt)}';
   }
 
@@ -2350,15 +2404,8 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final viewInsets = MediaQuery.of(context).viewInsets;
-
     return Dialog(
-      insetPadding: EdgeInsets.fromLTRB(
-        16,
-        24,
-        16,
-        24 + viewInsets.bottom,
-      ),
+      insetPadding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(4),
         side: const BorderSide(color: AppColors.border),
@@ -2372,7 +2419,10 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [AppColors.slatePrimary, Color(0xFF66758D)],

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/content_engagement_service.dart';
+import '../../core/services/paper_comment_service.dart';
+import '../../core/services/post_comment_service.dart';
 import '../papers/paper_detail_screen.dart';
 import '../posts/post_detail_screen.dart';
 
@@ -17,6 +19,8 @@ class FeedScreen extends StatefulWidget {
 class _FeedScreenState extends State<FeedScreen> {
   final supabase = Supabase.instance.client;
   final _engagementService = ContentEngagementService();
+  final _paperCommentService = PaperCommentService();
+  final _postCommentService = PostCommentService();
   final Set<String> _pendingReactionKeys = <String>{};
   List<Map<String, dynamic>> _papers = [];
   List<Map<String, dynamic>> _posts = [];
@@ -60,6 +64,7 @@ class _FeedScreenState extends State<FeedScreen> {
             .limit(100);
 
         papers = List<Map<String, dynamic>>.from(papersResponse);
+        await _paperCommentService.attachCommentCounts(papers);
         // Add type marker
         for (var paper in papers) {
           paper['content_type'] = 'paper';
@@ -89,6 +94,7 @@ class _FeedScreenState extends State<FeedScreen> {
         }
       }
 
+      await _postCommentService.attachCommentCounts(posts);
       await _attachEngagementData(papers, 'paper');
       await _attachEngagementData(posts, 'post');
 
@@ -639,6 +645,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       category: category?['name'] ?? 'Uncategorized',
                       date: _formatDate(item['created_at']),
                       views: item['views_count'] ?? 0,
+                      commentsCount: item['comments_count'] ?? 0,
                       abstract: item['abstract'],
                       likesCount: item['likes_count'] ?? 0,
                       dislikesCount: item['dislikes_count'] ?? 0,
@@ -672,6 +679,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       category: category?['name'] ?? 'Uncategorized',
                       date: _formatDate(item['created_at']),
                       views: item['views_count'] ?? 0,
+                      commentsCount: item['comments_count'] ?? 0,
                       likesCount: item['likes_count'] ?? 0,
                       dislikesCount: item['dislikes_count'] ?? 0,
                       userReaction: item['user_reaction'],
@@ -705,6 +713,7 @@ class _FeedScreenState extends State<FeedScreen> {
     required String category,
     required String date,
     required int views,
+    required int commentsCount,
     required String abstract,
     required int likesCount,
     required int dislikesCount,
@@ -789,6 +798,20 @@ class _FeedScreenState extends State<FeedScreen> {
                     color: AppColors.textSubtle,
                   ),
                 ),
+                const SizedBox(width: 10),
+                const Icon(
+                  Icons.comment_outlined,
+                  size: 12,
+                  color: AppColors.textSubtle,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '$commentsCount',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSubtle,
+                  ),
+                ),
                 const Spacer(),
                 Text(
                   date,
@@ -836,6 +859,7 @@ class _FeedScreenState extends State<FeedScreen> {
     required String category,
     required String date,
     required int views,
+    required int commentsCount,
     required int likesCount,
     required int dislikesCount,
     required int? userReaction,
@@ -927,6 +951,20 @@ class _FeedScreenState extends State<FeedScreen> {
                 const SizedBox(width: 4),
                 Text(
                   '$views',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSubtle,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Icon(
+                  Icons.comment_outlined,
+                  size: 12,
+                  color: AppColors.textSubtle,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '$commentsCount',
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textSubtle,

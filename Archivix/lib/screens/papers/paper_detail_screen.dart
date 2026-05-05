@@ -8,7 +8,9 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'pdf_viewer_screen.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/content_engagement_service.dart';
+import '../../core/services/paper_comment_service.dart';
 import '../../core/utils/paper_review_status.dart';
+import '../public_profile_screen.dart';
 import 'edit_paper_screen.dart';
 import 'paper_history_screen.dart';
 
@@ -24,6 +26,7 @@ class PaperDetailScreen extends StatefulWidget {
 class _PaperDetailScreenState extends State<PaperDetailScreen> {
   final supabase = Supabase.instance.client;
   final _engagementService = ContentEngagementService();
+  final _paperCommentService = PaperCommentService();
   final TextEditingController _commentController = TextEditingController();
   Map<String, dynamic>? _paper;
   List<Map<String, dynamic>> _authors = [];
@@ -99,6 +102,11 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
           .eq('id', widget.paperId)
           .single();
 
+      final commentCounts = await _paperCommentService.loadCommentCounts([
+        widget.paperId,
+      ]);
+      paperResponse['comments_count'] = commentCounts[widget.paperId] ?? 0;
+
       // Fetch authors
       final authorsResponse = await supabase
           .from('paper_authors')
@@ -169,17 +177,25 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
     }
 
     try {
-      final response = await supabase
-          .from('paper_comments')
-          .select('id, paper_id, user_id, author_label, body, created_at, updated_at')
-          .eq('paper_id', widget.paperId)
-          .order('created_at');
+      final comments = await _paperCommentService.loadComments(widget.paperId);
+      final profiles = await _paperCommentService.loadProfiles(
+        comments.map((comment) => '${comment['user_id'] ?? ''}'),
+      );
 
       if (!mounted) return;
 
+      final enrichedComments = comments.map((comment) {
+        final enriched = Map<String, dynamic>.from(comment);
+        enriched['profile'] = profiles['${comment['user_id']}'];
+        return enriched;
+      }).toList();
+
       setState(() {
-        _comments = List<Map<String, dynamic>>.from(response);
+        _comments = enrichedComments;
         _isLoadingComments = false;
+        if (_paper != null) {
+          _paper!['comments_count'] = enrichedComments.length;
+        }
       });
     } catch (error) {
       if (!mounted) return;
@@ -226,6 +242,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
       'created_at': DateTime.now().toUtc().toIso8601String(),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
       'is_pending': true,
+      'profile': _currentUserProfile(user),
     };
 
     FocusScope.of(context).unfocus();
@@ -235,19 +252,18 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
       _commentsError = null;
       _comments = [..._comments, optimisticComment];
       _commentController.clear();
+      if (_paper != null) {
+        _paper!['comments_count'] = _comments.length;
+      }
     });
 
     try {
-      final inserted = await supabase
-          .from('paper_comments')
-          .insert({
-            'paper_id': widget.paperId,
-            'user_id': user.id,
-            'author_label': authorLabel,
-            'body': body,
-          })
-          .select('id, paper_id, user_id, author_label, body, created_at, updated_at')
-          .single();
+      final inserted = await _paperCommentService.insertComment(
+        paperId: widget.paperId,
+        userId: user.id,
+        body: body,
+        authorLabel: authorLabel,
+      );
 
       if (!mounted) return;
 
@@ -255,10 +271,16 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
         _comments = _comments
             .map(
               (comment) => comment['id'] == tempId
-                  ? Map<String, dynamic>.from(inserted)
+                  ? <String, dynamic>{
+                      ...Map<String, dynamic>.from(inserted),
+                      'profile': _currentUserProfile(user),
+                    }
                   : comment,
             )
             .toList();
+        if (_paper != null) {
+          _paper!['comments_count'] = _comments.length;
+        }
       });
     } catch (error) {
       if (!mounted) return;
@@ -266,6 +288,9 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
       setState(() {
         _comments.removeWhere((comment) => comment['id'] == tempId);
         _commentsError = _friendlyCommentsError(error);
+        if (_paper != null) {
+          _paper!['comments_count'] = _comments.length;
+        }
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -275,11 +300,11 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-
-      setState(() {
-        _isSubmittingComment = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSubmittingComment = false;
+        });
+      }
     }
   }
 
@@ -698,15 +723,16 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
 
   String _currentUserLabel(User user) {
     final metadata = user.userMetadata ?? const <String, dynamic>{};
-    final candidate = [
-      metadata['full_name'],
-      metadata['name'],
-      metadata['username'],
-      metadata['display_name'],
-    ].whereType<String>().map((value) => value.trim()).firstWhere(
-          (value) => value.isNotEmpty,
-          orElse: () => '',
-        );
+    final candidate =
+        [
+              metadata['full_name'],
+              metadata['name'],
+              metadata['username'],
+              metadata['display_name'],
+            ]
+            .whereType<String>()
+            .map((value) => value.trim())
+            .firstWhere((value) => value.isNotEmpty, orElse: () => '');
 
     if (candidate.isNotEmpty) {
       return candidate;
@@ -718,6 +744,82 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
     }
 
     return 'Researcher';
+  }
+
+  Map<String, dynamic> _currentUserProfile(User user) {
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    return <String, dynamic>{
+      'id': user.id,
+      'username': metadata['username'],
+      'full_name': metadata['full_name'] ?? metadata['name'],
+      'avatar_path': metadata['avatar_path'],
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+  }
+
+  String _commentDisplayName(
+    Map<String, dynamic>? profile,
+    String? authorLabel,
+  ) {
+    final username = (profile?['username'] as String?)?.trim();
+    if (username != null && username.isNotEmpty) {
+      return '@$username';
+    }
+
+    final fullName = (profile?['full_name'] as String?)?.trim();
+    if (fullName != null && fullName.isNotEmpty) {
+      return fullName;
+    }
+
+    final fallbackLabel = authorLabel?.trim();
+    if (fallbackLabel != null && fallbackLabel.isNotEmpty) {
+      return fallbackLabel;
+    }
+
+    return 'Researcher';
+  }
+
+  String? _commentSecondaryLabel(Map<String, dynamic>? profile) {
+    final username = (profile?['username'] as String?)?.trim();
+    final fullName = (profile?['full_name'] as String?)?.trim();
+
+    if (username != null &&
+        username.isNotEmpty &&
+        fullName != null &&
+        fullName.isNotEmpty) {
+      return fullName;
+    }
+
+    return null;
+  }
+
+  String? _profileAvatarUrl(Map<String, dynamic>? profile) {
+    final avatarPath = (profile?['avatar_path'] as String?)?.trim();
+    if (avatarPath == null || avatarPath.isEmpty) {
+      return null;
+    }
+
+    final updatedAt = (profile?['updated_at'] as String?) ?? '';
+    final publicUrl = supabase.storage
+        .from('profile-avatars')
+        .getPublicUrl(avatarPath);
+    return '$publicUrl?v=${Uri.encodeComponent(updatedAt)}';
+  }
+
+  Future<void> _openProfileViewer(Map<String, dynamic> comment) async {
+    final userId = '${comment['user_id'] ?? ''}'.trim();
+    if (userId.isEmpty) return;
+
+    final initialProfile = comment['profile'] is Map<String, dynamic>
+        ? comment['profile'] as Map<String, dynamic>
+        : null;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            PublicProfileScreen(userId: userId, initialProfile: initialProfile),
+      ),
+    );
   }
 
   Widget _buildStatusChip(String status) {
@@ -945,10 +1047,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                 SizedBox(height: 6),
                 Text(
                   'Start the discussion by sharing a question, insight, or review.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSubtle,
-                  ),
+                  style: TextStyle(fontSize: 13, color: AppColors.textSubtle),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -987,7 +1086,8 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
             maxLength: 2000,
             textInputAction: TextInputAction.newline,
             decoration: const InputDecoration(
-              hintText: 'Share a question, insight, or feedback about this document...',
+              hintText:
+                  'Share a question, insight, or feedback about this document...',
               alignLabelWithHint: true,
             ),
           ),
@@ -997,10 +1097,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
               const Expanded(
                 child: Text(
                   'Be constructive and keep it relevant to the research.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSubtle,
-                  ),
+                  style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1032,6 +1129,91 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
     final isOwnComment =
         comment['user_id'] != null &&
         comment['user_id'] == supabase.auth.currentUser?.id;
+    final profile = comment['profile'] as Map<String, dynamic>?;
+    final avatarUrl = _profileAvatarUrl(profile);
+    final displayName = _commentDisplayName(
+      profile,
+      comment['author_label'] as String?,
+    );
+    final secondaryLabel = _commentSecondaryLabel(profile);
+    final initials = displayName.trim().isNotEmpty
+        ? displayName.replaceFirst('@', '').substring(0, 1).toUpperCase()
+        : '?';
+
+    final authorButton = InkWell(
+      onTap: isPending ? null : () => _openProfileViewer(comment),
+      borderRadius: BorderRadius.circular(8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.slatePrimary, Color(0xFF73829B)],
+              ),
+              border: Border.all(color: const Color(0xFF3F4857)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: avatarUrl == null
+                ? Center(
+                    child: Text(
+                      initials,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                : Image.network(
+                    avatarUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                displayName,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (secondaryLabel != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  secondaryLabel,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
 
     return Opacity(
       opacity: isPending ? 0.7 : 1,
@@ -1047,17 +1229,9 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    comment['author_label'] ?? 'Researcher',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
+                Expanded(child: authorButton),
                 if (isOwnComment && !isPending)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -1080,13 +1254,10 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               isPending ? 'Sending...' : _formatDateTime(comment['created_at']),
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSubtle,
-              ),
+              style: const TextStyle(fontSize: 11, color: AppColors.textSubtle),
             ),
             const SizedBox(height: 10),
             Text(
@@ -1277,6 +1448,24 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                           const SizedBox(width: 6),
                           Text(
                             '${_paper!['views_count'] ?? 0} views',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.comment_outlined,
+                            size: 16,
+                            color: AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${_paper!['comments_count'] ?? _comments.length} comments',
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textMuted,

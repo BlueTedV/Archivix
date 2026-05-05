@@ -9,6 +9,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import '../papers/pdf_viewer_screen.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/content_engagement_service.dart';
+import '../../core/services/post_comment_service.dart';
+import '../public_profile_screen.dart';
 import 'edit_post_screen.dart';
 import 'post_history_screen.dart';
 
@@ -39,12 +41,18 @@ class PostDetailScreen extends StatefulWidget {
 class _PostDetailScreenState extends State<PostDetailScreen> {
   final supabase = Supabase.instance.client;
   final _engagementService = ContentEngagementService();
+  final _postCommentService = PostCommentService();
+  final TextEditingController _commentController = TextEditingController();
 
   Map<String, dynamic>? _post;
   List<Map<String, dynamic>> _attachments = [];
+  List<Map<String, dynamic>> _comments = [];
   bool _isLoading = true;
+  bool _isLoadingComments = false;
   String? _error;
+  String? _commentsError;
   bool _isReacting = false;
+  bool _isSubmittingComment = false;
   ContentEngagementSummary _engagementSummary =
       const ContentEngagementSummary();
 
@@ -67,6 +75,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   @override
   void dispose() {
+    _commentController.dispose();
     for (final controller in _videoControllers.values) {
       controller.dispose();
     }
@@ -111,6 +120,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           ''')
           .eq('id', widget.postId)
           .single();
+
+      final commentCounts = await _postCommentService.loadCommentCounts([
+        widget.postId,
+      ]);
+      postResponse['comments_count'] = commentCounts[widget.postId] ?? 0;
 
       // 2. Fetch attachments
       final attachmentsResponse = await supabase
@@ -160,6 +174,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           _attachments = attachments;
           _isLoading = false;
         });
+
+        _loadComments();
       }
     } catch (error) {
       if (mounted) {
@@ -179,6 +195,147 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       );
     } catch (e) {
       debugPrint('Error incrementing views: $e');
+    }
+  }
+
+  Future<void> _loadComments() async {
+    if (mounted) {
+      setState(() {
+        _isLoadingComments = true;
+        _commentsError = null;
+      });
+    }
+
+    try {
+      final comments = await _postCommentService.loadComments(widget.postId);
+      final profiles = await _postCommentService.loadProfiles(
+        comments.map((comment) => '${comment['user_id'] ?? ''}'),
+      );
+
+      if (!mounted) return;
+
+      final enrichedComments = comments.map((comment) {
+        final enriched = Map<String, dynamic>.from(comment);
+        enriched['profile'] = profiles['${comment['user_id']}'];
+        return enriched;
+      }).toList();
+
+      setState(() {
+        _comments = enrichedComments;
+        _commentsError = null;
+        _isLoadingComments = false;
+        if (_post != null) {
+          _post!['comments_count'] = enrichedComments.length;
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _commentsError = _friendlyCommentsError(error);
+        _isLoadingComments = false;
+      });
+    }
+  }
+
+  Future<void> _submitComment() async {
+    final user = supabase.auth.currentUser;
+    final body = _commentController.text.trim();
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please sign in to comment.'),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+      return;
+    }
+
+    if (body.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Write a comment before posting.'),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+      return;
+    }
+
+    final authorLabel = _currentUserLabel(user);
+    final tempId = 'pending-${DateTime.now().microsecondsSinceEpoch}';
+    final optimisticComment = <String, dynamic>{
+      'id': tempId,
+      'post_id': widget.postId,
+      'user_id': user.id,
+      'author_label': authorLabel,
+      'body': body,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+      'is_pending': true,
+      'profile': _currentUserProfile(user),
+    };
+
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isSubmittingComment = true;
+      _commentsError = null;
+      _comments = [..._comments, optimisticComment];
+      _commentController.clear();
+      if (_post != null) {
+        _post!['comments_count'] = _comments.length;
+      }
+    });
+
+    try {
+      final inserted = await _postCommentService.insertComment(
+        postId: widget.postId,
+        userId: user.id,
+        body: body,
+        authorLabel: authorLabel,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _comments = _comments
+            .map(
+              (comment) => comment['id'] == tempId
+                  ? <String, dynamic>{
+                      ...Map<String, dynamic>.from(inserted),
+                      'profile': _currentUserProfile(user),
+                    }
+                  : comment,
+            )
+            .toList();
+        if (_post != null) {
+          _post!['comments_count'] = _comments.length;
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _comments.removeWhere((comment) => comment['id'] == tempId);
+        _commentsError = _friendlyCommentsError(error);
+        if (_post != null) {
+          _post!['comments_count'] = _comments.length;
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_friendlyCommentsError(error)),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmittingComment = false;
+        });
+      }
     }
   }
 
@@ -445,6 +602,475 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     } catch (e) {
       return 'Unknown';
     }
+  }
+
+  String _formatDateTime(String? dateString) {
+    if (dateString == null) return 'Unknown';
+
+    try {
+      final date = DateTime.parse(dateString).toLocal();
+      final now = DateTime.now();
+      final difference = now.difference(date);
+      final hh = date.hour.toString().padLeft(2, '0');
+      final mm = date.minute.toString().padLeft(2, '0');
+
+      if (difference.inMinutes < 1) {
+        return 'Just now';
+      }
+      if (difference.inHours < 1) {
+        return '${difference.inMinutes} min ago';
+      }
+      if (difference.inDays == 0) {
+        return 'Today at $hh:$mm';
+      }
+      if (difference.inDays == 1) {
+        return 'Yesterday at $hh:$mm';
+      }
+      if (difference.inDays < 7) {
+        return '${difference.inDays} days ago';
+      }
+      return '${date.day}/${date.month}/${date.year} $hh:$mm';
+    } catch (_) {
+      return 'Unknown';
+    }
+  }
+
+  String _friendlyCommentsError(Object error) {
+    final message = error.toString();
+    final normalized = message.toLowerCase();
+    if (normalized.contains(
+          'relation "public.paper_comments" does not exist',
+        ) ||
+        normalized.contains('relation "paper_comments" does not exist') ||
+        normalized.contains('column "post_id" does not exist') ||
+        normalized.contains('could not find the table') ||
+        normalized.contains('schema cache')) {
+      return 'Comments are not ready yet. Run paper_comments_setup.sql in Supabase first.';
+    }
+    return 'Unable to load comments right now.\n$message';
+  }
+
+  Map<String, dynamic> _currentUserProfile(User user) {
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    return <String, dynamic>{
+      'id': user.id,
+      'username': metadata['username'],
+      'full_name': metadata['full_name'] ?? metadata['name'],
+      'avatar_path': metadata['avatar_path'],
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+  }
+
+  String _currentUserLabel(User user) {
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    final candidate =
+        [
+              metadata['username'],
+              metadata['full_name'],
+              metadata['name'],
+              metadata['display_name'],
+            ]
+            .whereType<String>()
+            .map((value) => value.trim())
+            .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+
+    if (candidate.isNotEmpty) {
+      return candidate;
+    }
+
+    final email = user.email?.trim() ?? '';
+    if (email.isNotEmpty) {
+      return email.split('@').first;
+    }
+
+    return 'Researcher';
+  }
+
+  String _commentDisplayName(
+    Map<String, dynamic>? profile,
+    String? authorLabel,
+  ) {
+    final username = (profile?['username'] as String?)?.trim();
+    if (username != null && username.isNotEmpty) {
+      return '@$username';
+    }
+
+    final fullName = (profile?['full_name'] as String?)?.trim();
+    if (fullName != null && fullName.isNotEmpty) {
+      return fullName;
+    }
+
+    final fallbackLabel = authorLabel?.trim();
+    if (fallbackLabel != null && fallbackLabel.isNotEmpty) {
+      return fallbackLabel;
+    }
+
+    return 'Researcher';
+  }
+
+  String? _commentSecondaryLabel(Map<String, dynamic>? profile) {
+    final username = (profile?['username'] as String?)?.trim();
+    final fullName = (profile?['full_name'] as String?)?.trim();
+
+    if (username != null &&
+        username.isNotEmpty &&
+        fullName != null &&
+        fullName.isNotEmpty) {
+      return fullName;
+    }
+
+    return null;
+  }
+
+  String? _profileAvatarUrl(Map<String, dynamic>? profile) {
+    final avatarPath = (profile?['avatar_path'] as String?)?.trim();
+    if (avatarPath == null || avatarPath.isEmpty) {
+      return null;
+    }
+
+    final updatedAt = (profile?['updated_at'] as String?) ?? '';
+    final publicUrl = supabase.storage
+        .from('profile-avatars')
+        .getPublicUrl(avatarPath);
+    return '$publicUrl?v=${Uri.encodeComponent(updatedAt)}';
+  }
+
+  Future<void> _openProfileViewer(Map<String, dynamic> comment) async {
+    final userId = '${comment['user_id'] ?? ''}'.trim();
+    if (userId.isEmpty) return;
+
+    final initialProfile = comment['profile'] is Map<String, dynamic>
+        ? comment['profile'] as Map<String, dynamic>
+        : null;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            PublicProfileScreen(userId: userId, initialProfile: initialProfile),
+      ),
+    );
+  }
+
+  Widget _buildDiscussionSection() {
+    return Column(
+      children: [
+        _buildCommentComposer(),
+        const SizedBox(height: 12),
+        if (_isLoadingComments)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 10),
+                Text(
+                  'Loading discussion...',
+                  style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          )
+        else if (_commentsError != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.errorSurface,
+              border: Border.all(color: AppColors.errorBorder),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Discussion unavailable',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.errorDark,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _commentsError!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.errorDark,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _loadComments,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          )
+        else if (_comments.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceFaint,
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Column(
+              children: [
+                Icon(
+                  Icons.comment_outlined,
+                  size: 40,
+                  color: AppColors.textSubtle,
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'No comments yet',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Start the discussion by asking a follow-up or sharing a helpful answer.',
+                  style: TextStyle(fontSize: 13, color: AppColors.textSubtle),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          ..._comments.map(_buildCommentCard),
+      ],
+    );
+  }
+
+  Widget _buildCommentComposer() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Join the discussion',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _commentController,
+            minLines: 3,
+            maxLines: 6,
+            maxLength: 2000,
+            textInputAction: TextInputAction.newline,
+            decoration: const InputDecoration(
+              hintText:
+                  'Share a helpful answer, follow-up question, or extra context...',
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Your current username and profile photo will be shown with this comment.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: _isSubmittingComment ? null : _submitComment,
+                icon: _isSubmittingComment
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.send, size: 16),
+                label: Text(_isSubmittingComment ? 'Posting...' : 'Post'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommentCard(Map<String, dynamic> comment) {
+    final isPending = comment['is_pending'] == true;
+    final isOwnComment =
+        comment['user_id'] != null &&
+        comment['user_id'] == supabase.auth.currentUser?.id;
+    final profile = comment['profile'] as Map<String, dynamic>?;
+    final avatarUrl = _profileAvatarUrl(profile);
+    final displayName = _commentDisplayName(
+      profile,
+      comment['author_label'] as String?,
+    );
+    final secondaryLabel = _commentSecondaryLabel(profile);
+    final initials = displayName.trim().isNotEmpty
+        ? displayName.replaceFirst('@', '').substring(0, 1).toUpperCase()
+        : '?';
+
+    final authorButton = InkWell(
+      onTap: isPending ? null : () => _openProfileViewer(comment),
+      borderRadius: BorderRadius.circular(8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.slatePrimary, Color(0xFF73829B)],
+              ),
+              border: Border.all(color: const Color(0xFF3F4857)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: avatarUrl == null
+                ? Center(
+                    child: Text(
+                      initials,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                : Image.network(
+                    avatarUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                displayName,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (secondaryLabel != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  secondaryLabel,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+
+    return Opacity(
+      opacity: isPending ? 0.7 : 1,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: authorButton),
+                if (isOwnComment && !isPending)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'You',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isPending ? 'Sending...' : _formatDateTime(comment['created_at']),
+              style: const TextStyle(fontSize: 11, color: AppColors.textSubtle),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              comment['body'] ?? '',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.6,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _formatDuration(Duration d) {
@@ -1283,6 +1909,24 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.comment_outlined,
+                    size: 15,
+                    color: AppColors.amberDark,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_post!['comments_count'] ?? _comments.length} comments',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.amberDark,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               _buildReactionRow(),
             ],
@@ -1323,38 +1967,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         // ── Discussion placeholder ───────────────────────────────────────────
         _buildSectionHeader('Discussion'),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceFaint,
-            border: Border.all(color: AppColors.border),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: const Column(
-            children: [
-              Icon(
-                Icons.comment_outlined,
-                size: 40,
-                color: AppColors.textSubtle,
-              ),
-              SizedBox(height: 12),
-              Text(
-                'Comments & Discussion',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted,
-                ),
-              ),
-              SizedBox(height: 6),
-              Text(
-                'Coming soon! You will be able to discuss this post with other researchers.',
-                style: TextStyle(fontSize: 13, color: AppColors.textSubtle),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+        _buildDiscussionSection(),
 
         const SizedBox(height: 24),
       ],

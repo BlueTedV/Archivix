@@ -38,16 +38,14 @@ class ContentEngagementSummary {
       if (reactionValue == 1) {
         nextLikesCount = nextLikesCount > 0 ? nextLikesCount - 1 : 0;
       } else {
-        nextDislikesCount =
-            nextDislikesCount > 0 ? nextDislikesCount - 1 : 0;
+        nextDislikesCount = nextDislikesCount > 0 ? nextDislikesCount - 1 : 0;
       }
       nextUserReaction = null;
     } else {
       if (userReaction == 1) {
         nextLikesCount = nextLikesCount > 0 ? nextLikesCount - 1 : 0;
       } else if (userReaction == -1) {
-        nextDislikesCount =
-            nextDislikesCount > 0 ? nextDislikesCount - 1 : 0;
+        nextDislikesCount = nextDislikesCount > 0 ? nextDislikesCount - 1 : 0;
       }
 
       if (reactionValue == 1) {
@@ -71,7 +69,7 @@ class ContentEngagementService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   String _tableForType(String contentType) {
-    return contentType == 'paper' ? 'paper_reactions' : 'post_reactions';
+    return 'post_reactions';
   }
 
   String _idColumnForType(String contentType) {
