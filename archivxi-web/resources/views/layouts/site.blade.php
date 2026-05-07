@@ -205,6 +205,348 @@
         }
     </style>
     @yield('styles')
+    <style>
+        :root {
+            --classic-bg: #e8e8e8;
+            --classic-panel: #f7f7f4;
+            --classic-white: #ffffff;
+            --classic-border: #b5bbc6;
+            --classic-border-dark: #7e8794;
+            --classic-slate: #4a5568;
+            --classic-slate-light: #73829b;
+            --classic-slate-dark: #3f4857;
+            --classic-text: #1f2937;
+            --classic-muted: #6b7280;
+            --classic-faint: #f3f4f6;
+            --classic-amber-bg: #fff9e6;
+            --classic-amber-border: #fcd34d;
+            --classic-amber-text: #92400e;
+        }
+
+        body {
+            font-family: Tahoma, Verdana, Arial, sans-serif;
+            background: var(--classic-bg);
+            color: var(--classic-text);
+        }
+
+        .navbar {
+            position: sticky;
+            padding: 0 24px;
+            min-height: 54px;
+            background: linear-gradient(180deg, var(--classic-slate-light) 0%, var(--classic-slate) 48%, var(--classic-slate-dark) 100%);
+            border-bottom: 1px solid #2f3743;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+            backdrop-filter: none;
+        }
+
+        .brand-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            background: linear-gradient(180deg, #7f8da3 0%, var(--classic-slate) 100%);
+            border: 1px solid #303844;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30);
+            font-size: 12px;
+        }
+
+        .brand-name {
+            font-size: 17px;
+            letter-spacing: 0;
+        }
+
+        .nav-link,
+        .btn,
+        .nav-btn,
+        button.btn,
+        a.btn {
+            border-radius: 4px;
+            box-shadow: none;
+            transform: none;
+            transition: background 0.12s, border-color 0.12s;
+        }
+
+        .nav-link {
+            color: #edf2f7;
+            border: 1px solid transparent;
+            padding: 7px 10px;
+        }
+
+        .nav-link:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.20);
+        }
+
+        .btn:hover {
+            transform: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(180deg, var(--classic-slate-light) 0%, var(--classic-slate) 100%);
+            color: #ffffff;
+            border: 1px solid var(--classic-slate-dark);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(180deg, #8491a6 0%, #546176 100%);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(180deg, #ffffff 0%, #ecece7 100%);
+            color: var(--classic-text);
+            border: 1px solid var(--classic-border);
+        }
+
+        .btn-danger {
+            background: linear-gradient(180deg, #ef4444 0%, #991b1b 100%);
+            border: 1px solid #7f1d1d;
+            color: #ffffff;
+        }
+
+        .card,
+        .hero-copy,
+        .hero-card,
+        .detail-hero,
+        .profile-card,
+        .panel,
+        .feed-card,
+        .detail-card,
+        .manager-header .summary-card,
+        .content-card,
+        .feature-card,
+        .cta-band,
+        .download-strip,
+        .app-preview-card,
+        .dl-card,
+        .auth-box .card {
+            border-radius: 4px;
+            border: 1px solid var(--classic-border);
+            box-shadow: none;
+            background: var(--classic-panel);
+        }
+
+        .hero-copy,
+        .hero-card,
+        .detail-hero,
+        .manager-header .hero-card,
+        .download-strip {
+            background: linear-gradient(180deg, var(--classic-slate-light) 0%, var(--classic-slate) 42%, var(--classic-slate-dark) 100%);
+            border: 1px solid var(--classic-slate-dark);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+            color: #ffffff;
+        }
+
+        .hero-copy h1,
+        .hero-card h1,
+        .detail-hero h1 {
+            letter-spacing: 0;
+        }
+
+        .eyebrow,
+        .hero-card span,
+        .hero-badge,
+        .app-preview-copy span,
+        .download-strip span,
+        .section-head span {
+            border-radius: 3px;
+            background: #e1e6ee;
+            border: 1px solid #aeb7c4;
+            color: var(--classic-slate-dark);
+            letter-spacing: 0.04em;
+        }
+
+        .hero-copy .eyebrow,
+        .hero-card span,
+        .detail-hero .type-badge,
+        .detail-hero .status-badge {
+            background: rgba(255, 255, 255, 0.16);
+            border-color: rgba(255, 255, 255, 0.24);
+            color: #ffffff;
+        }
+
+        .hero-metric,
+        .profile-item,
+        .mini-item,
+        .feedback-item,
+        .alert-item,
+        .account-item,
+        .activity-item,
+        .recent-item,
+        .meta-item,
+        .asset-item,
+        .comment-card,
+        .summary-item,
+        .review-card,
+        .empty-state,
+        .phone-preview,
+        .preview-placeholder,
+        .auth-switch,
+        .filter-pill,
+        .engagement-btn {
+            border-radius: 4px;
+            background: #ffffff;
+            border: 1px solid #c4cad3;
+            box-shadow: none;
+        }
+
+        .phone-preview img {
+            filter: none;
+        }
+
+        .type-badge,
+        .status-badge,
+        .pill,
+        .filter-pill,
+        .engagement-btn,
+        .chip {
+            border-radius: 3px;
+        }
+
+        .type-badge.post,
+        .pill.type-post,
+        .feature-icon {
+            background: var(--classic-amber-bg);
+            border: 1px solid var(--classic-amber-border);
+            color: var(--classic-amber-text);
+        }
+
+        .type-badge.paper,
+        .pill.type-paper {
+            background: #e9eff7;
+            border: 1px solid #b9c6d8;
+            color: var(--classic-slate-dark);
+        }
+
+        .form-input,
+        textarea,
+        .comment-form textarea {
+            border-radius: 4px;
+            background: #ffffff;
+            border: 1px solid #9ca3af;
+            box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08);
+        }
+
+        .form-input:focus,
+        textarea:focus,
+        .comment-form textarea:focus {
+            border-color: var(--classic-slate);
+            box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--classic-slate);
+        }
+
+        .footer {
+            margin-top: 34px;
+            padding: 16px 24px;
+            background: #d7dce4;
+            border-top: 1px solid var(--classic-border);
+            color: var(--classic-muted);
+        }
+
+        .landing-wrap {
+            max-width: 1220px;
+            padding-top: 22px;
+        }
+
+        .landing-wrap .hero {
+            grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.78fr);
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+
+        .landing-wrap .hero-copy {
+            padding: 26px 32px;
+        }
+
+        .landing-wrap .eyebrow {
+            padding: 7px 10px;
+            margin-bottom: 14px;
+        }
+
+        .landing-wrap .hero-copy h1 {
+            font-size: clamp(30px, 3.3vw, 46px);
+            line-height: 1.08;
+            margin-bottom: 14px;
+        }
+
+        .landing-wrap .hero-copy p {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        .landing-wrap .hero-actions {
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .landing-wrap .hero-metrics {
+            gap: 8px;
+        }
+
+        .landing-wrap .hero-copy .hero-metric {
+            padding: 11px 12px;
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.22);
+        }
+
+        .landing-wrap .hero-copy .hero-metric strong {
+            color: #ffffff;
+            font-size: 18px;
+        }
+
+        .landing-wrap .hero-copy .hero-metric span {
+            color: #edf2f7;
+            font-size: 11px;
+        }
+
+        .landing-wrap .app-preview-card {
+            min-height: 0;
+            padding: 22px;
+            justify-content: flex-start;
+        }
+
+        .landing-wrap .app-preview-copy h2 {
+            font-size: 24px;
+            line-height: 1.18;
+        }
+
+        .landing-wrap .app-preview-copy p {
+            font-size: 14px;
+            line-height: 1.55;
+        }
+
+        .landing-wrap .phone-preview {
+            min-height: 260px;
+            padding: 14px;
+        }
+
+        .landing-wrap .phone-preview img {
+            width: min(100%, 210px);
+            max-height: 300px;
+        }
+
+        .landing-wrap .preview-placeholder {
+            width: min(100%, 210px);
+            color: var(--classic-muted);
+            background: #f7f7f4;
+        }
+
+        .landing-wrap .preview-placeholder strong {
+            color: var(--classic-text);
+        }
+
+        @media (max-width: 720px) {
+            .navbar {
+                padding: 10px 14px;
+            }
+        }
+
+        @media (max-width: 980px) {
+            .landing-wrap .hero {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
 <nav class="navbar">
@@ -231,8 +573,7 @@
                 <button type="submit" class="btn btn-primary">Logout</button>
             </form>
         @else
-            <a href="{{ route('login') }}" class="nav-link">Login</a>
-            <a href="{{ route('register') }}" class="nav-link">Register</a>
+            <a href="{{ route('login') }}" class="nav-link">Masuk / Daftar</a>
         @endif
     </div>
 </nav>

@@ -384,9 +384,9 @@
     <section class="manager-header">
         <div class="hero-card">
             <span>Content Control</span>
-            <h1>Kelola questions dan documents dari Supabase.</h1>
+            <h1>Kelola questions dan documents Archivix.</h1>
             <p>
-                Halaman ini adalah meja kerja admin pertama untuk meninjau konten, membuka form edit,
+                Halaman ini adalah meja kerja admin untuk meninjau konten, membuka form edit,
                 menerbitkan dokumen yang belum live, dan menghapus item yang memang harus dihapus.
             </p>
 
@@ -441,7 +441,7 @@
     <section class="content-card">
         <div class="toolbar">
             <div>
-                <h2>/dashboard/posts</h2>
+                <h2>Daftar Konten</h2>
                 <p>Filter daftar ini untuk fokus pada questions atau documents. Semua aksi edit, publish, dan delete berjalan dari sini.</p>
             </div>
 
@@ -455,7 +455,7 @@
         <div class="toolbar" style="margin-top: 0; margin-bottom: 14px;">
             <div>
                 <h2>Review Queue</h2>
-                <p>Dokumen yang statusnya <code>submitted</code> atau <code>under_review</code> ditinjau dari sini supaya panel web tetap jadi workspace utama admin.</p>
+                <p>Dokumen yang sudah dikirim atau sedang ditinjau muncul di sini agar proses review tetap terpusat.</p>
             </div>
         </div>
 
@@ -518,7 +518,7 @@
         @if (count($items) === 0)
             <div class="empty-state">
                 <h3>Belum ada konten untuk filter ini.</h3>
-                <p>Setelah ada questions atau documents di Supabase, daftarnya akan muncul di sini.</p>
+                <p>Questions atau documents yang sesuai filter akan muncul di sini.</p>
             </div>
         @else
             <table class="content-table">
@@ -542,6 +542,9 @@
                             <td>
                                 <div class="content-title">{{ $item['title'] }}</div>
                                 <div class="content-excerpt">{{ $item['excerpt'] !== '' ? $item['excerpt'] : 'No summary available yet.' }}</div>
+                                <div class="meta-stack" style="margin-top: 8px;">
+                                    <span>+ {{ $item['likes_count'] ?? 0 }} likes - {{ $item['dislikes_count'] ?? 0 }} dislikes - # {{ $item['comments_count'] ?? 0 }} comments</span>
+                                </div>
                             </td>
                             <td>
                                 <div class="meta-stack">
@@ -568,6 +571,7 @@
                             <td>{{ $item['views_count'] }}</td>
                             <td>
                                 <div class="actions">
+                                    <a href="{{ route('dashboard.posts.show', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" class="btn btn-secondary">View</a>
                                     <a href="{{ route('dashboard.posts.edit', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" class="btn btn-secondary">Edit</a>
 
                                     @if ($item['type'] === 'paper' && $item['status'] === 'submitted')
@@ -584,7 +588,7 @@
                                         </form>
                                     @endif
 
-                                    <form action="{{ route('dashboard.posts.destroy', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" method="POST" class="action-form" onsubmit="return confirm('Delete this item from Supabase?');">
+                                    <form action="{{ route('dashboard.posts.destroy', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" method="POST" class="action-form" onsubmit="return confirm('Delete this item from Archivix?');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-danger">Delete</button>

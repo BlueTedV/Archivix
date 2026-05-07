@@ -17,14 +17,6 @@
     .auth-header h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
     .auth-header p { font-size: 13.5px; color: #6b7280; line-height: 1.65; }
 
-    .helper-text {
-        font-size: 12px;
-        color: #9ca3af;
-        margin-top: -10px;
-        margin-bottom: 18px;
-        line-height: 1.6;
-    }
-
     .alert {
         border-radius: 8px;
         padding: 12px 14px;
@@ -52,7 +44,7 @@
     <div class="auth-box">
         <div class="auth-header">
             <h2>Masuk ke Panel Admin</h2>
-            <p>Masuk dengan akun Supabase yang sudah diberi role admin supaya dashboard web tetap jadi area kerja khusus moderator dan reviewer.</p>
+            <p>Gunakan akun admin resmi untuk mengakses area moderasi dan pengelolaan konten Archivix.</p>
         </div>
 
         <div class="card">
@@ -89,8 +81,6 @@
                     placeholder="Masukkan password admin"
                     required
                 >
-
-                <p class="helper-text">Laravel akan login ke Supabase lalu mengecek apakah akun ini punya <code>app_metadata.role = admin</code>.</p>
 
                 <button type="submit" class="btn btn-primary btn-full">
                     Masuk ke Admin Panel

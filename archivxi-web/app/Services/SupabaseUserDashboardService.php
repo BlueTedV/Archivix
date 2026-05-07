@@ -22,6 +22,8 @@ class SupabaseUserDashboardService
     {
         $papers = $this->fetchPapers($userId);
         $posts = $this->fetchPosts($userId);
+        $this->attachEngagement($papers, 'paper', $userId);
+        $this->attachEngagement($posts, 'post', $userId);
 
         /** @var array<int, array<string, mixed>> $recentItems */
         $recentItems = collect([...$papers, ...$posts])
@@ -162,6 +164,79 @@ class SupabaseUserDashboardService
             ],
             default => null,
         };
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $items
+     */
+    private function attachEngagement(array &$items, string $type, string $userId): void
+    {
+        if ($items === []) {
+            return;
+        }
+
+        $ids = collect($items)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return;
+        }
+
+        $idColumn = $type === 'paper' ? 'paper_id' : 'post_id';
+        $reactionRows = $this->getRows('post_reactions', [
+            $idColumn => 'in.('.implode(',', $ids).')',
+            'select' => $idColumn.',user_id,reaction_value',
+        ]);
+        $commentRows = $this->getRows('paper_comments', [
+            $idColumn => 'in.('.implode(',', $ids).')',
+            'select' => $idColumn,
+        ]);
+
+        $summaries = [];
+        foreach ($ids as $id) {
+            $summaries[$id] = [
+                'likes_count' => 0,
+                'dislikes_count' => 0,
+                'comments_count' => 0,
+                'user_reaction' => null,
+            ];
+        }
+
+        foreach ($reactionRows as $row) {
+            $contentId = (string) ($row[$idColumn] ?? '');
+            if (! isset($summaries[$contentId])) {
+                continue;
+            }
+
+            $reactionValue = (int) ($row['reaction_value'] ?? 0);
+            if ($reactionValue === 1) {
+                $summaries[$contentId]['likes_count']++;
+            } elseif ($reactionValue === -1) {
+                $summaries[$contentId]['dislikes_count']++;
+            }
+
+            if ((string) ($row['user_id'] ?? '') === $userId) {
+                $summaries[$contentId]['user_reaction'] = $reactionValue;
+            }
+        }
+
+        foreach ($commentRows as $row) {
+            $contentId = (string) ($row[$idColumn] ?? '');
+            if (isset($summaries[$contentId])) {
+                $summaries[$contentId]['comments_count']++;
+            }
+        }
+
+        foreach ($items as &$item) {
+            $item = [
+                ...$item,
+                ...($summaries[(string) ($item['id'] ?? '')] ?? []),
+            ];
+        }
     }
 
     /**

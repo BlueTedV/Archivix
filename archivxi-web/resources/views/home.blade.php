@@ -92,10 +92,10 @@
         border-radius: 10px;
         padding: 56px 24px;
         text-align: center;
-        color: #9ca3af;
+        color: #6b7280;
     }
 
-    .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-state .icon { font-size: 26px; margin-bottom: 12px; }
     .empty-state p { font-size: 14px; line-height: 1.6; }
 
     .count-label {
@@ -108,15 +108,14 @@
 
 @section('content')
 <div class="home-wrap">
-
     <div class="hero">
         <div class="hero-label">Archivix Platform</div>
-        <h2>Selamat datang 👋</h2>
+        <h2>Selamat datang di Archivix</h2>
         <p>Temukan, bagikan, dan unduh berbagai konten edukatif dari komunitas.</p>
     </div>
 
     <div class="bar">
-        <div class="bar-title">Recent Activity</div>
+        <div class="bar-title">Aktivitas Terbaru</div>
         <div class="filter-group">
             <button class="chip active">Terbaru</button>
             <button class="chip">Semua</button>
@@ -126,9 +125,8 @@
     <div class="count-label">0 item tersedia</div>
 
     <div class="empty-state">
-        <div class="icon">📭</div>
-        <p>Belum ada unggahan.<br>Konten akan muncul di sini setelah terhubung ke database.</p>
+        <div class="icon">-</div>
+        <p>Belum ada unggahan untuk ditampilkan.<br>Mulai dari aplikasi Archivix untuk menambahkan konten pertamamu.</p>
     </div>
-
 </div>
 @endsection

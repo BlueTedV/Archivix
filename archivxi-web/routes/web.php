@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminContentController;
 use App\Http\Controllers\UserAuthController;
 use App\Http\Controllers\UserDashboardController;
+use App\Services\SupabaseAdminContentService;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -20,23 +22,35 @@ Route::middleware('web-user.session')->group(function () {
 
 Route::post('/logout', [UserAuthController::class, 'logout'])->name('logout');
 
-Route::get('/admin/login', function () {
-    return redirect()->route('login');
-});
-
-Route::post('/admin/login', function () {
-    return redirect()->route('login');
-});
-
-Route::post('/admin/logout', [UserAuthController::class, 'logout']);
+Route::get('/admin/login', [AuthController::class, 'create'])->name('admin.login');
+Route::post('/admin/login', [AuthController::class, 'store'])->name('admin.login.submit');
+Route::post('/admin/logout', [AuthController::class, 'destroy'])->name('admin.logout');
 
 Route::get('/home-admin', function () {
     return redirect('/dashboard');
 });
 
-Route::get('/dashboard', function () {
+Route::get('/dashboard', function (SupabaseAdminContentService $contentService) {
+    $recentUploads = [];
+    $loadError = null;
+
+    try {
+        $recentUploads = array_slice(
+            $contentService->listContent(
+                'all',
+                (string) data_get(session('admin_user'), 'id', ''),
+            )['items'],
+            0,
+            6,
+        );
+    } catch (\RuntimeException $exception) {
+        $loadError = $exception->getMessage();
+    }
+
     return view('dashboard', [
         'user' => (object) session('admin_user', []),
+        'recentUploads' => $recentUploads,
+        'loadError' => $loadError,
     ]);
 })->middleware('admin.session')->name('dashboard');
 
@@ -46,11 +60,23 @@ Route::prefix('dashboard/posts')
     ->group(function () {
         Route::get('/', [AdminContentController::class, 'index'])->name('index');
         Route::get('/{contentType}/{contentId}/edit', [AdminContentController::class, 'edit'])->name('edit');
+        Route::get('/{contentType}/{contentId}', [AdminContentController::class, 'show'])->name('show');
+        Route::post('/{contentType}/{contentId}/react', [AdminContentController::class, 'react'])->name('react');
+        Route::post('/{contentType}/{contentId}/comment', [AdminContentController::class, 'comment'])->name('comment');
         Route::put('/{contentType}/{contentId}', [AdminContentController::class, 'update'])->name('update');
         Route::post('/paper/{contentId}/under-review', [AdminContentController::class, 'markUnderReview'])->name('under-review');
         Route::post('/paper/{contentId}/publish', [AdminContentController::class, 'publish'])->name('publish');
         Route::post('/paper/{contentId}/reject', [AdminContentController::class, 'reject'])->name('reject');
         Route::delete('/{contentType}/{contentId}', [AdminContentController::class, 'destroy'])->name('destroy');
+    });
+
+Route::prefix('content')
+    ->middleware('web-user.session')
+    ->name('content.')
+    ->group(function () {
+        Route::get('/{contentType}/{contentId}', [AdminContentController::class, 'show'])->name('show');
+        Route::post('/{contentType}/{contentId}/react', [AdminContentController::class, 'react'])->name('react');
+        Route::post('/{contentType}/{contentId}/comment', [AdminContentController::class, 'comment'])->name('comment');
     });
 
 Route::get('/admin', function () {

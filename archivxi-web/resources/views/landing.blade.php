@@ -94,53 +94,125 @@
         gap: 16px;
     }
 
-    .glass-card {
-        border-radius: 28px;
-        padding: 24px;
-        background: rgba(255, 255, 255, 0.84);
+    .app-preview-card {
+        height: 100%;
+        min-height: 536px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 20px;
+        border-radius: 32px;
+        padding: 26px;
+        background: rgba(255, 255, 255, 0.90);
         border: 1px solid rgba(214, 222, 234, 0.95);
-        box-shadow: 0 20px 44px rgba(14, 30, 56, 0.08);
+        box-shadow: 0 24px 48px rgba(14, 30, 56, 0.10);
+        overflow: hidden;
     }
 
-    .glass-card h3 {
-        font-size: 18px;
-        margin-bottom: 10px;
+    .app-preview-copy span {
+        display: inline-block;
+        margin-bottom: 8px;
+        color: #1d72da;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
 
-    .glass-card p {
+    .app-preview-copy h2 {
+        font-size: 24px;
+        line-height: 1.2;
+        margin-bottom: 8px;
+        color: #132238;
+    }
+
+    .app-preview-copy p {
+        color: #5f7187;
         font-size: 14px;
         line-height: 1.7;
-        color: #5f7187;
     }
 
-    .stack-list {
+    .phone-preview {
+        flex: 1;
+        min-height: 360px;
         display: grid;
-        gap: 12px;
-        margin-top: 18px;
-    }
-
-    .stack-item {
-        padding: 14px 16px;
-        border-radius: 18px;
-        background: #f8fbff;
+        place-items: center;
+        border-radius: 28px;
+        padding: 18px;
+        background:
+            linear-gradient(180deg, rgba(19, 34, 56, 0.06), rgba(55, 147, 255, 0.08)),
+            #f8fbff;
         border: 1px solid #dfe8f2;
     }
 
-    .stack-item strong {
-        display: block;
-        font-size: 14px;
-        margin-bottom: 4px;
+    .phone-preview img {
+        width: min(100%, 300px);
+        max-height: 430px;
+        object-fit: contain;
+        filter: drop-shadow(0 24px 34px rgba(14, 30, 56, 0.20));
     }
 
-    .stack-item span {
+    .preview-placeholder {
+        width: min(100%, 260px);
+        aspect-ratio: 9 / 18;
+        display: grid;
+        place-items: center;
+        border-radius: 34px;
+        padding: 18px;
+        background: #132238;
+        color: #cfe6ff;
+        text-align: center;
+        box-shadow: inset 0 0 0 10px #203955, 0 22px 36px rgba(14, 30, 56, 0.20);
+    }
+
+    .preview-placeholder strong {
         display: block;
-        font-size: 13px;
-        color: #6f8095;
+        color: #ffffff;
+        font-size: 18px;
+        margin-bottom: 8px;
+    }
+
+    .preview-placeholder span {
+        font-size: 12px;
         line-height: 1.6;
     }
 
     .section {
         margin-top: 26px;
+    }
+
+    .download-strip {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 18px;
+        margin-top: 26px;
+        padding: 26px;
+        border-radius: 28px;
+        background: #132238;
+        color: #f7fbff;
+        box-shadow: 0 20px 40px rgba(19, 34, 56, 0.18);
+    }
+
+    .download-strip span {
+        display: inline-block;
+        margin-bottom: 8px;
+        color: #7cc2ff;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .download-strip h2 {
+        font-size: 24px;
+        margin-bottom: 6px;
+    }
+
+    .download-strip p {
+        max-width: 680px;
+        color: rgba(247, 251, 255, 0.76);
+        line-height: 1.7;
     }
 
     .section-head {
@@ -229,8 +301,17 @@
 
     @media (max-width: 980px) {
         .hero,
-        .feature-grid {
+        .feature-grid,
+        .download-strip {
             grid-template-columns: 1fr;
+        }
+
+        .app-preview-card {
+            min-height: auto;
+        }
+
+        .phone-preview {
+            min-height: 320px;
         }
     }
 
@@ -251,6 +332,10 @@
             flex-direction: column;
             align-items: flex-start;
         }
+
+        .download-strip {
+            padding: 22px;
+        }
     }
 </style>
 @endsection
@@ -263,7 +348,7 @@
             <h1>Tempat berbagi, menyimpan, dan menemukan konten pembelajaran dalam satu ruang.</h1>
             <p>
                 Archivix membantu komunitas belajar mengelola dokumen, referensi, dan unggahan akademik dengan alur yang lebih rapi.
-                Halaman ini menjadi pintu masuk web version, lalu setelah login pengguna akan masuk ke dashboard mereka.
+                Masuk untuk membuka dashboard, memantau progres dokumen, dan melanjutkan aktivitas dari akun Archivix kamu.
             </p>
 
             <div class="hero-actions">
@@ -272,8 +357,7 @@
                 @elseif (session()->has('web_user'))
                     <a href="{{ route('user.dashboard') }}" class="btn btn-primary">Buka Dashboard</a>
                 @else
-                    <a href="{{ route('login') }}" class="btn btn-primary">Masuk Sekarang</a>
-                    <a href="{{ route('register') }}" class="btn btn-secondary">Buat Akun</a>
+                    <a href="{{ route('login') }}" class="btn btn-primary">Masuk / Daftar</a>
                 @endif
                 <a href="/download" class="btn btn-secondary">Lihat Download</a>
             </div>
@@ -281,71 +365,77 @@
             <div class="hero-metrics">
                 <div class="hero-metric">
                     <strong>1</strong>
-                    <span>Landing page untuk pengunjung baru</span>
+                    <span>Pintu masuk untuk komunitas Archivix</span>
                 </div>
                 <div class="hero-metric">
                     <strong>1</strong>
-                    <span>Dashboard khusus setelah login</span>
+                    <span>Dashboard pribadi setelah login</span>
                 </div>
                 <div class="hero-metric">
-                    <strong>Supabase</strong>
-                    <span>Auth source yang sama dengan mobile app</span>
+                    <strong>Aman</strong>
+                    <span>Akses akun terhubung dengan alur autentikasi Archivix</span>
                 </div>
             </div>
         </div>
 
         <div class="hero-panel">
-            <div class="glass-card">
-                <h3>Alur Pengguna</h3>
-                <p>Pengunjung melihat pengenalan platform terlebih dahulu. Setelah berhasil login, mereka diarahkan ke dashboard untuk melihat status akun dan pintasan kerja.</p>
+            <div class="app-preview-card">
+                <div class="app-preview-copy">
+                    <span>Mobile App Preview</span>
+                    <h2>Archivix di genggaman pengguna.</h2>
+                    <p>Lihat tampilan aplikasi mobile untuk mencari, mengunggah, dan memantau konten pembelajaran dari mana saja.</p>
+                </div>
 
-                <div class="stack-list">
-                    <div class="stack-item">
-                        <strong>1. Jelajahi platform</strong>
-                        <span>Baca gambaran singkat tentang fungsi Archivix dan apa yang akan tersedia di web version.</span>
-                    </div>
-                    <div class="stack-item">
-                        <strong>2. Login dengan satu akun</strong>
-                        <span>Semua akun memakai Supabase login yang sama, lalu dashboard akan menyesuaikan berdasarkan role akunmu.</span>
-                    </div>
-                    <div class="stack-item">
-                        <strong>3. Masuk ke dashboard</strong>
-                        <span>Lihat identitas akun dan area kerja yang nantinya bisa diisi fitur unggah, statistik, dan status dokumen sesuai aksesmu.</span>
+                <div class="phone-preview">
+                    <img
+                        src="{{ asset('images/mobile-app-preview.png') }}"
+                        alt="Preview tampilan aplikasi mobile Archivix"
+                        onerror="this.hidden = true; this.nextElementSibling.hidden = false;"
+                    >
+                    <div class="preview-placeholder" hidden>
+                        <div>
+                            <strong>Mobile Preview</strong>
+                            <span>Letakkan mock-up kamu di public/images/mobile-app-preview.png</span>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <div class="glass-card">
-                <h3>Web Version Status</h3>
-                <p>Versi web masih awal, jadi landing page ini sengaja berperan sebagai introduction page sambil dashboard dipakai sebagai area internal setelah pengguna berhasil login.</p>
-            </div>
         </div>
+    </section>
+
+    <section class="download-strip">
+        <div>
+            <span>Download Mobile App</span>
+            <h2>Gunakan Archivix lewat aplikasi mobile.</h2>
+            <p>Unduh aplikasi untuk akses yang lebih cepat saat membaca, mencari referensi, atau melanjutkan aktivitas pembelajaran.</p>
+        </div>
+        <a href="/download" class="btn btn-primary">Ke Halaman Download</a>
     </section>
 
     <section class="section">
         <div class="section-head">
             <span>Kenapa Archivix</span>
             <h2>Dirancang untuk alur belajar dan pengelolaan arsip yang lebih jelas.</h2>
-            <p>Daripada langsung menampilkan halaman kosong, pengunjung sekarang mendapatkan konteks tentang produk ini, sementara user yang sudah login bisa langsung pindah ke area dashboard.</p>
+            <p>Archivix menyatukan pengelolaan dokumen, pertanyaan, dan status review agar pengguna lebih mudah mengikuti perkembangan konten mereka.</p>
         </div>
 
         <div class="feature-grid">
             <article class="feature-card">
                 <div class="feature-icon">01</div>
-                <h3>Landing page yang jelas</h3>
-                <p>Homepage sekarang berfungsi sebagai pengantar platform, bukan sekadar placeholder konten kosong.</p>
+                <h3>Akses yang jelas</h3>
+                <p>Pengguna baru dan pengguna lama masuk melalui alur autentikasi yang ringkas.</p>
             </article>
 
             <article class="feature-card">
                 <div class="feature-icon">02</div>
                 <h3>Dashboard setelah login</h3>
-                <p>Setelah auth berhasil, user langsung diarahkan ke dashboard agar pengalaman terasa lebih terstruktur.</p>
+                <p>Setelah berhasil masuk, pengguna diarahkan ke dashboard sesuai peran dan akses akun.</p>
             </article>
 
             <article class="feature-card">
                 <div class="feature-icon">03</div>
-                <h3>Siap dikembangkan</h3>
-                <p>Struktur ini enak untuk langkah berikutnya seperti menambahkan statistik, daftar konten, dan upload form berbasis Supabase.</p>
+                <h3>Alur konten rapi</h3>
+                <p>Status dokumen, feedback, dan aktivitas terbaru tersusun agar mudah dipantau.</p>
             </article>
         </div>
     </section>
@@ -353,7 +443,7 @@
     <section class="cta-band">
         <div>
             <h3>Siap lanjut ke dashboard?</h3>
-            <p>Masuk dengan akun Supabase Archivix untuk membuka dashboard yang sesuai dengan role akunmu.</p>
+            <p>Masuk atau daftar untuk membuka dashboard Archivix dan melanjutkan aktivitasmu.</p>
         </div>
 
         @if (session()->has('admin_user'))
@@ -361,7 +451,7 @@
         @elseif (session()->has('web_user'))
             <a href="{{ route('user.dashboard') }}" class="btn btn-primary">Ke Dashboard</a>
         @else
-            <a href="{{ route('login') }}" class="btn btn-primary">Masuk</a>
+            <a href="{{ route('login') }}" class="btn btn-primary">Masuk / Daftar</a>
         @endif
     </section>
 </div>

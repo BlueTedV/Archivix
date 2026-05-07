@@ -437,7 +437,7 @@
                 </div>
                 <div class="mini-item">
                     <strong>Account source</strong>
-                    <span>This web dashboard uses the same Supabase account as your mobile app.</span>
+                    <span>This web dashboard uses the same Archivix account as your mobile app.</span>
                 </div>
             </div>
         </div>
@@ -557,12 +557,19 @@
                             <div class="meta-row">
                                 <span class="subtle">Category: {{ $item['category_name'] }}</span>
                                 <span class="subtle">Views: {{ $item['views_count'] }}</span>
+                                <span class="subtle">+ {{ $item['likes_count'] ?? 0 }}</span>
+                                <span class="subtle">- {{ $item['dislikes_count'] ?? 0 }}</span>
+                                <span class="subtle"># {{ $item['comments_count'] ?? 0 }}</span>
                                 @if (($item['type'] ?? '') === 'paper' && ($item['submitted_at'] ?? null))
                                     <span class="subtle">Submitted: {{ $formatDate($item['submitted_at']) }}</span>
                                 @endif
                                 @if (($item['type'] ?? '') === 'paper' && ($item['published_at'] ?? null))
                                     <span class="subtle">Published: {{ $formatDate($item['published_at']) }}</span>
                                 @endif
+                            </div>
+
+                            <div class="panel-actions" style="margin-top: 12px;">
+                                <a href="{{ route('content.show', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" class="btn btn-secondary">View Detail</a>
                             </div>
                         </article>
                     @endforeach
@@ -587,7 +594,7 @@
 
                 <div class="account-item">
                     <strong>Verification Status</strong>
-                    <span>{{ $user->email_verified_at ? 'Verified in Supabase' : 'Not verified yet' }}</span>
+                    <span>{{ $user->email_verified_at ? 'Verified' : 'Not verified yet' }}</span>
                 </div>
 
                 <div class="account-item">

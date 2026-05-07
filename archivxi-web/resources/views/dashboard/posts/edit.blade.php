@@ -156,7 +156,7 @@
     <div class="edit-grid">
         <section class="panel">
             <h2>Item Context</h2>
-            <p>Ringkasan cepat sebelum kamu simpan perubahan ke Supabase.</p>
+            <p>Ringkasan cepat sebelum kamu menyimpan perubahan konten.</p>
 
             <div class="meta-card">
                 <strong>Type</strong>
@@ -224,7 +224,7 @@
 
         <section class="panel">
             <h1>Edit {{ $item['type_label'] }}</h1>
-            <p>Perubahan di halaman ini akan dikirim langsung ke Supabase memakai kredensial admin Laravel, lalu versi sebelumnya diarsipkan sebelum file atau isi konten diganti.</p>
+            <p>Perubahan akan disimpan ke konten Archivix, lalu versi sebelumnya diarsipkan sebelum file atau isi konten diganti.</p>
 
             <form action="{{ route('dashboard.posts.update', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" method="POST" enctype="multipart/form-data">
                 @csrf

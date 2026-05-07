@@ -16,7 +16,7 @@ class RequireAdminSession
             $request->session()->forget(['admin_user', 'is_admin']);
 
             return redirect()
-                ->route('login')
+                ->route('admin.login')
                 ->withErrors([
                     'email' => 'Masuk dengan akun Supabase yang punya role admin terlebih dahulu.',
                 ]);

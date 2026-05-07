@@ -38,7 +38,10 @@ class AdminContentController extends Controller
         $loadError = null;
 
         try {
-            $payload = $contentService->listContent($filter);
+            $payload = $contentService->listContent(
+                $filter,
+                $this->sessionUserId($request),
+            );
         } catch (RuntimeException $exception) {
             $loadError = $exception->getMessage();
         }
@@ -72,6 +75,99 @@ class AdminContentController extends Controller
         } catch (RuntimeException $exception) {
             abort(404, $exception->getMessage());
         }
+    }
+
+    public function show(
+        Request $request,
+        string $contentType,
+        string $contentId,
+        SupabaseAdminContentService $contentService,
+    ): View {
+        $type = $this->normalizeType($contentType);
+
+        try {
+            $item = $contentService->getContentDetail(
+                $type,
+                $contentId,
+                $this->sessionUserId($request),
+            );
+            $this->authorizeContentVisibility($request, $item);
+
+            return view('dashboard.posts.show', [
+                'item' => $item,
+            ]);
+        } catch (RuntimeException $exception) {
+            abort(404, $exception->getMessage());
+        }
+    }
+
+    public function react(
+        Request $request,
+        string $contentType,
+        string $contentId,
+        SupabaseAdminContentService $contentService,
+    ): RedirectResponse {
+        $type = $this->normalizeType($contentType);
+        $userId = $this->sessionUserId($request);
+
+        if ($userId === '') {
+            return redirect()->route('login');
+        }
+
+        $data = $request->validate([
+            'reaction_value' => ['required', 'integer', 'in:-1,1'],
+        ]);
+
+        try {
+            $item = $contentService->getContentDetail($type, $contentId, $userId);
+            $this->authorizeContentVisibility($request, $item);
+            $contentService->toggleReaction(
+                $type,
+                $contentId,
+                $userId,
+                (int) $data['reaction_value'],
+            );
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['engagement' => $exception->getMessage()]);
+        }
+
+        return back();
+    }
+
+    public function comment(
+        Request $request,
+        string $contentType,
+        string $contentId,
+        SupabaseAdminContentService $contentService,
+    ): RedirectResponse {
+        $type = $this->normalizeType($contentType);
+        $userId = $this->sessionUserId($request);
+
+        if ($userId === '') {
+            return redirect()->route('login');
+        }
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        try {
+            $item = $contentService->getContentDetail($type, $contentId, $userId);
+            $this->authorizeContentVisibility($request, $item);
+            $contentService->addComment(
+                $type,
+                $contentId,
+                $userId,
+                $this->sessionUserName($request),
+                (string) $data['body'],
+            );
+        } catch (RuntimeException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors(['comment' => $exception->getMessage()]);
+        }
+
+        return back()->with('success', 'Comment posted.');
     }
 
     public function update(
@@ -275,5 +371,47 @@ class AdminContentController extends Controller
             'post', 'paper' => $type,
             default => abort(404),
         };
+    }
+
+    private function sessionUserId(Request $request): string
+    {
+        return (string) (
+            data_get($request->session()->get('admin_user'), 'id')
+            ?? data_get($request->session()->get('web_user'), 'id')
+            ?? ''
+        );
+    }
+
+    private function sessionUserName(Request $request): string
+    {
+        return (string) (
+            data_get($request->session()->get('admin_user'), 'name')
+            ?? data_get($request->session()->get('web_user'), 'name')
+            ?? data_get($request->session()->get('admin_user'), 'email')
+            ?? data_get($request->session()->get('web_user'), 'email')
+            ?? 'Archivix User'
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     */
+    private function authorizeContentVisibility(Request $request, array $item): void
+    {
+        if ($request->session()->has('admin_user')) {
+            return;
+        }
+
+        if (($item['type'] ?? '') === 'post') {
+            return;
+        }
+
+        $sessionUserId = $this->sessionUserId($request);
+        $isOwner = $sessionUserId !== '' && $sessionUserId === (string) ($item['user_id'] ?? '');
+        $isPublished = (string) ($item['status'] ?? '') === 'published';
+
+        if (! $isOwner && ! $isPublished) {
+            abort(404);
+        }
     }
 }

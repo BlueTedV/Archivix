@@ -21,7 +21,9 @@ class UserAuthController extends Controller
             return redirect()->route('user.dashboard');
         }
 
-        return view('auth.user-login');
+        return view('auth.user-login', [
+            'authMode' => 'login',
+        ]);
     }
 
     public function login(
@@ -77,7 +79,9 @@ class UserAuthController extends Controller
             return redirect()->route('user.dashboard');
         }
 
-        return view('auth.user-register');
+        return view('auth.user-login', [
+            'authMode' => 'register',
+        ]);
     }
 
     public function register(

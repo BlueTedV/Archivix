@@ -92,48 +92,8 @@
         word-break: break-word;
     }
 
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
-        margin-bottom: 22px;
-    }
-
-    .stat-card {
-        padding: 22px;
-        border-radius: 24px;
-        background: rgba(255, 255, 255, 0.94);
-        border: 1px solid rgba(214, 222, 234, 0.95);
-        box-shadow: 0 18px 36px rgba(14, 30, 56, 0.06);
-    }
-
-    .stat-card span {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 12px;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #6a7b90;
-    }
-
-    .stat-card strong {
-        display: block;
-        font-size: 28px;
-        margin-bottom: 6px;
-        color: #122031;
-    }
-
-    .stat-card p {
-        color: #67788e;
-        font-size: 13px;
-        line-height: 1.65;
-    }
-
     .dashboard-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 18px;
+        display: block;
     }
 
     .panel {
@@ -155,32 +115,115 @@
         margin-bottom: 16px;
     }
 
-    .action-list,
-    .roadmap-list {
+    .recent-list {
         display: grid;
         gap: 12px;
     }
 
-    .action-item,
-    .roadmap-item {
+    .recent-item {
         padding: 16px 18px;
         border-radius: 18px;
         background: #f8fbff;
         border: 1px solid #dfe8f2;
     }
 
-    .action-item strong,
-    .roadmap-item strong {
+    .recent-item strong {
         display: block;
         margin-bottom: 5px;
         font-size: 14px;
     }
 
-    .action-item span,
-    .roadmap-item span {
+    .recent-item span,
+    .recent-item p {
         color: #697b91;
         font-size: 13px;
         line-height: 1.65;
+        margin: 0;
+    }
+
+    .recent-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 8px;
+    }
+
+    .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .type-badge,
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .type-badge.post {
+        background: #fff6e7;
+        border: 1px solid #f4d7a4;
+        color: #b26f07;
+    }
+
+    .type-badge.paper {
+        background: #eef6ff;
+        border: 1px solid #cde1f6;
+        color: #1c5ea8;
+    }
+
+    .status-badge.live,
+    .status-badge.published {
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #047857;
+    }
+
+    .status-badge.draft,
+    .status-badge.under_review {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+    }
+
+    .status-badge.submitted {
+        background: #fff7ed;
+        border: 1px solid #fdba74;
+        color: #c2410c;
+    }
+
+    .status-badge.rejected {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+    }
+
+    .empty-state {
+        padding: 28px 18px;
+        border-radius: 20px;
+        background: #f8fbff;
+        border: 1px dashed #c9d8e8;
+        color: #64768c;
+        text-align: center;
+    }
+
+    .alert-error {
+        border-radius: 20px;
+        padding: 14px 16px;
+        margin-bottom: 18px;
+        font-size: 13px;
+        line-height: 1.6;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #b91c1c;
     }
 
     .panel-actions {
@@ -191,9 +234,7 @@
     }
 
     @media (max-width: 980px) {
-        .dashboard-hero,
-        .stats-grid,
-        .dashboard-grid {
+        .dashboard-hero {
             grid-template-columns: 1fr;
         }
     }
@@ -205,9 +246,12 @@
 
         .hero-card,
         .profile-card,
-        .stat-card,
         .panel {
             padding: 22px;
+        }
+
+        .recent-head {
+            flex-direction: column;
         }
     }
 </style>
@@ -215,13 +259,16 @@
 
 @section('content')
 <div class="dashboard-wrap">
+    @if ($loadError)
+        <div class="alert-error">{{ $loadError }}</div>
+    @endif
+
     <section class="dashboard-hero">
         <div class="hero-card">
-            <span>Admin Session</span>
+            <span>Admin Panel</span>
             <h1>Selamat datang di dashboard admin Archivix.</h1>
             <p>
-                Kamu sudah berhasil masuk melalui login Supabase Archivix dan lolos pengecekan role admin.
-                Dashboard ini sekarang siap kita kembangkan menjadi panel pengelolaan questions dan documents.
+                Kelola questions dan documents, tinjau status publikasi, dan pantau aktivitas konten dari satu ruang kerja admin.
             </p>
         </div>
 
@@ -252,81 +299,42 @@
         </div>
     </section>
 
-    <section class="stats-grid">
-        <article class="stat-card">
-            <span>Auth</span>
-            <strong>OK</strong>
-            <p>Satu login Supabase sekarang langsung mengarahkan admin ke dashboard ini.</p>
-        </article>
-
-        <article class="stat-card">
-            <span>Role</span>
-            <strong>Admin</strong>
-            <p>Hanya user Supabase dengan role admin yang bisa membuka dashboard ini.</p>
-        </article>
-
-        <article class="stat-card">
-            <span>Content</span>
-            <strong>0</strong>
-            <p>Belum ada data live yang ditarik ke dashboard ini.</p>
-        </article>
-
-        <article class="stat-card">
-            <span>Next Step</span>
-            <strong>Build</strong>
-            <p>Kita bisa sambungkan panel ini ke tabel Supabase berikutnya.</p>
-        </article>
-    </section>
-
     <section class="dashboard-grid">
         <div class="panel">
-            <h2>Quick Actions</h2>
-            <p>Beberapa pintasan sederhana supaya user punya arah yang jelas setelah login.</p>
+            <h2>Recent Uploads</h2>
+            <p>Questions dan documents terbaru yang masuk ke Archivix.</p>
 
-            <div class="action-list">
-                <div class="action-item">
-                    <strong>Lihat landing page</strong>
-                    <span>Kembali ke halaman utama publik untuk melihat introduction page.</span>
+            @if (count($recentUploads) === 0)
+                <div class="empty-state">Belum ada upload terbaru untuk ditampilkan.</div>
+            @else
+                <div class="recent-list">
+                    @foreach ($recentUploads as $item)
+                        <article class="recent-item">
+                            <div class="recent-head">
+                                <div>
+                                    <strong>{{ $item['title'] }}</strong>
+                                    <p>{{ $item['excerpt'] !== '' ? $item['excerpt'] : 'No summary available yet.' }}</p>
+                                </div>
+                                <a href="{{ route('dashboard.posts.show', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" class="btn btn-secondary">View Detail</a>
+                            </div>
+
+                            <div class="badge-row">
+                                <span class="type-badge {{ $item['type'] }}">{{ $item['type_label'] }}</span>
+                                <span class="status-badge {{ str_replace('-', '_', $item['status']) }}">{{ str_replace('_', ' ', $item['status']) }}</span>
+                                <span>+ {{ $item['likes_count'] ?? 0 }}</span>
+                                <span>- {{ $item['dislikes_count'] ?? 0 }}</span>
+                                <span># {{ $item['comments_count'] ?? 0 }}</span>
+                                <span>Category: {{ $item['category_name'] }}</span>
+                                <span>Uploaded {{ \Illuminate\Support\Carbon::parse($item['created_at'])->translatedFormat('d M Y H:i') }}</span>
+                            </div>
+                        </article>
+                    @endforeach
                 </div>
 
-                <div class="action-item">
-                    <strong>Cek status akun</strong>
-                    <span>Pastikan email, role admin, dan session Supabase terbaca dengan benar di dashboard.</span>
+                <div class="panel-actions">
+                    <a href="{{ route('dashboard.posts.index') }}" class="btn btn-primary">View All Content</a>
                 </div>
-
-                <div class="action-item">
-                    <strong>Siapkan fitur berikutnya</strong>
-                    <span>Dashboard ini siap dipakai untuk daftar post, papers, kategori, atau upload form.</span>
-                </div>
-            </div>
-
-            <div class="panel-actions">
-                <a href="/" class="btn btn-secondary">Kembali ke Home</a>
-                <a href="{{ route('dashboard.posts.index') }}" class="btn btn-secondary">Kelola Konten</a>
-                <a href="/download" class="btn btn-primary">Halaman Download</a>
-            </div>
-        </div>
-
-        <div class="panel">
-            <h2>Roadmap Dashboard</h2>
-            <p>Area ini bisa berkembang dari placeholder menjadi dashboard yang benar-benar hidup.</p>
-
-            <div class="roadmap-list">
-                <div class="roadmap-item">
-                    <strong>Integrasi data Supabase</strong>
-                    <span>Tampilkan jumlah post, paper, kategori, dan recent activity langsung dari database.</span>
-                </div>
-
-                <div class="roadmap-item">
-                    <strong>Content management</strong>
-                    <span>Tambahkan form upload, edit, dan delete untuk konten yang dibuat user.</span>
-                </div>
-
-                <div class="roadmap-item">
-                    <strong>Moderasi konten</strong>
-                    <span>Tambahkan daftar, edit, publish, dan hapus untuk questions serta documents dari Supabase.</span>
-                </div>
-            </div>
+            @endif
         </div>
     </section>
 </div>

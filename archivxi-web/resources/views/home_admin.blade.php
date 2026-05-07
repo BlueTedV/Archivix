@@ -9,7 +9,6 @@
         padding: 28px 20px;
     }
 
-    /* ADMIN NOTICE BAR */
     .admin-bar {
         background: #1e3a5f;
         border: 1px solid #2d5a8e;
@@ -30,8 +29,8 @@
     }
 
     .admin-dot {
-        width: 8px; height: 8px;
-        align-items: center;
+        width: 8px;
+        height: 8px;
         background: #34d399;
         border-radius: 50%;
     }
@@ -42,20 +41,6 @@
         color: #e2e8f0;
     }
 
-    .admin-bar a {
-        font-size: 12.5px;
-        font-weight: 600;
-        color: #93c5fd;
-        text-decoration: none;
-        padding: 5px 12px;
-        border: 1px solid #3b82f6;
-        border-radius: 6px;
-        transition: background 0.15s;
-    }
-
-    .admin-bar a:hover { background: rgba(59,130,246,0.15); }
-
-    /* HERO */
     .hero {
         background: #1e2a45;
         border-radius: 12px;
@@ -129,10 +114,10 @@
         border-radius: 10px;
         padding: 56px 24px;
         text-align: center;
-        color: #9ca3af;
+        color: #6b7280;
     }
 
-    .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-state .icon { font-size: 26px; margin-bottom: 12px; }
     .empty-state p { font-size: 14px; line-height: 1.6; }
 
     .count-label { font-size: 12.5px; color: #9ca3af; margin-bottom: 16px; }
@@ -141,24 +126,21 @@
 
 @section('content')
 <div class="home-wrap">
-
-    <!-- ADMIN NOTICE BAR -->
     <div class="admin-bar">
         <div class="admin-bar-left">
             <div class="admin-dot"></div>
             <span>Kamu masuk sebagai Admin</span>
         </div>
-        </div>
+    </div>
 
-    <!-- HERO -->
     <div class="hero">
         <div class="hero-label">Archivix Platform</div>
-        <h2>Selamat datang, Admin 👋</h2>
+        <h2>Selamat datang, Admin</h2>
         <p>Kelola konten dan pantau aktivitas platform dari sini.</p>
     </div>
 
     <div class="bar">
-        <div class="bar-title">Recent Activity</div>
+        <div class="bar-title">Aktivitas Terbaru</div>
         <div class="filter-group">
             <button class="chip active">Terbaru</button>
             <button class="chip">Semua</button>
@@ -168,9 +150,8 @@
     <div class="count-label">0 item tersedia</div>
 
     <div class="empty-state">
-        <div class="icon">📭</div>
-        <p>Belum ada unggahan.<br>Konten akan muncul di sini setelah terhubung ke database.</p>
+        <div class="icon">-</div>
+        <p>Belum ada aktivitas untuk ditampilkan.<br>Konten yang membutuhkan review akan muncul di panel admin.</p>
     </div>
-
 </div>
 @endsection

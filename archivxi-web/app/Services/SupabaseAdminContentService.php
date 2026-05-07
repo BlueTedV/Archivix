@@ -18,7 +18,7 @@ class SupabaseAdminContentService
      *   stats: array<string, int>
      * }
      */
-    public function listContent(string $filter = 'all'): array
+    public function listContent(string $filter = 'all', ?string $userId = null): array
     {
         $posts = in_array($filter, ['all', 'posts'], true)
             ? $this->fetchPosts()
@@ -26,6 +26,9 @@ class SupabaseAdminContentService
         $papers = in_array($filter, ['all', 'papers'], true)
             ? $this->fetchPapers()
             : [];
+
+        $this->attachEngagement($posts, 'post', $userId);
+        $this->attachEngagement($papers, 'paper', $userId);
 
         /** @var array<int, array<string, mixed>> $items */
         $items = collect([...$posts, ...$papers])
@@ -151,6 +154,95 @@ class SupabaseAdminContentService
             ])),
             default => throw new RuntimeException('Unsupported content type.'),
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getContentDetail(string $type, string $id, ?string $userId = null): array
+    {
+        $item = $this->getEditableContent($type, $id);
+        $items = [$item];
+        $this->attachEngagement($items, $type, $userId);
+
+        return [
+            ...$items[0],
+            'comments' => $this->listComments($type, $id),
+        ];
+    }
+
+    public function toggleReaction(
+        string $type,
+        string $id,
+        string $userId,
+        int $reactionValue,
+    ): void {
+        if (! in_array($reactionValue, [-1, 1], true)) {
+            throw new RuntimeException('Unsupported reaction value.');
+        }
+
+        $this->getEditableContent($type, $id);
+
+        $idColumn = $this->idColumnForType($type);
+        $existing = $this->getRows('post_reactions', [
+            $idColumn => 'eq.'.$id,
+            'user_id' => 'eq.'.$userId,
+            'select' => 'id,reaction_value',
+            'limit' => '1',
+        ]);
+
+        if ($existing === []) {
+            $this->insertRow('post_reactions', [
+                $idColumn => $id,
+                'user_id' => $userId,
+                'reaction_value' => $reactionValue,
+            ]);
+
+            return;
+        }
+
+        $reactionId = (string) ($existing[0]['id'] ?? '');
+        $currentValue = (int) ($existing[0]['reaction_value'] ?? 0);
+
+        if ($reactionId === '') {
+            throw new RuntimeException('Unable to update this reaction.');
+        }
+
+        if ($currentValue === $reactionValue) {
+            $this->deleteRows('post_reactions', [
+                'id' => 'eq.'.$reactionId,
+            ]);
+
+            return;
+        }
+
+        $this->patchRow('post_reactions', $reactionId, [
+            'reaction_value' => $reactionValue,
+        ]);
+    }
+
+    public function addComment(
+        string $type,
+        string $id,
+        string $userId,
+        string $authorLabel,
+        string $body,
+    ): void {
+        $this->getEditableContent($type, $id);
+
+        $body = trim($body);
+        if ($body === '') {
+            throw new RuntimeException('Comment cannot be empty.');
+        }
+
+        $idColumn = $this->idColumnForType($type);
+
+        $this->insertRow('paper_comments', [
+            $idColumn => $id,
+            'user_id' => $userId,
+            'author_label' => trim($authorLabel) !== '' ? trim($authorLabel) : 'Archivix User',
+            'body' => $body,
+        ]);
     }
 
     /**
@@ -404,11 +496,32 @@ class SupabaseAdminContentService
      */
     private function listPostAttachments(string $postId): array
     {
-        return $this->getRows('post_attachments', [
+        $rows = $this->getRows('post_attachments', [
             'post_id' => 'eq.'.$postId,
             'select' => 'id,file_url,file_name,file_type,file_size,mime_type,created_at',
             'order' => 'created_at.asc',
         ]);
+
+        return collect($rows)
+            ->map(function (array $attachment): array {
+                $fileUrl = (string) ($attachment['file_url'] ?? '');
+                $fileName = (string) ($attachment['file_name'] ?? 'attachment');
+
+                return [
+                    ...$attachment,
+                    'view_url' => $this->publicStorageUrl(
+                        bucket: 'post-attachments',
+                        path: $fileUrl,
+                    ),
+                    'download_url' => $this->publicStorageUrl(
+                        bucket: 'post-attachments',
+                        path: $fileUrl,
+                        downloadName: $fileName,
+                    ),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -421,6 +534,114 @@ class SupabaseAdminContentService
             'select' => 'name,email,affiliation,author_order',
             'order' => 'author_order.asc',
         ]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function listComments(string $type, string $id): array
+    {
+        $idColumn = $this->idColumnForType($type);
+
+        $rows = $this->getRows('paper_comments', [
+            $idColumn => 'eq.'.$id,
+            'select' => 'id,'.$idColumn.',user_id,author_label,body,created_at,updated_at',
+            'order' => 'created_at.asc',
+        ]);
+
+        return collect($rows)
+            ->map(fn (array $row): array => [
+                'id' => (string) ($row['id'] ?? ''),
+                'user_id' => (string) ($row['user_id'] ?? ''),
+                'author_label' => (string) ($row['author_label'] ?? 'Archivix User'),
+                'body' => (string) ($row['body'] ?? ''),
+                'created_at' => (string) ($row['created_at'] ?? ''),
+                'updated_at' => (string) ($row['updated_at'] ?? ''),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $items
+     */
+    private function attachEngagement(array &$items, string $type, ?string $userId = null): void
+    {
+        if ($items === []) {
+            return;
+        }
+
+        $ids = collect($items)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return;
+        }
+
+        $idColumn = $this->idColumnForType($type);
+        $reactionRows = $this->getRows('post_reactions', [
+            $idColumn => 'in.('.implode(',', $ids).')',
+            'select' => $idColumn.',user_id,reaction_value',
+        ]);
+        $commentRows = $this->getRows('paper_comments', [
+            $idColumn => 'in.('.implode(',', $ids).')',
+            'select' => $idColumn,
+        ]);
+
+        $summaries = [];
+        foreach ($ids as $id) {
+            $summaries[$id] = [
+                'likes_count' => 0,
+                'dislikes_count' => 0,
+                'comments_count' => 0,
+                'user_reaction' => null,
+            ];
+        }
+
+        foreach ($reactionRows as $row) {
+            $contentId = (string) ($row[$idColumn] ?? '');
+            if (! isset($summaries[$contentId])) {
+                continue;
+            }
+
+            $reactionValue = (int) ($row['reaction_value'] ?? 0);
+            if ($reactionValue === 1) {
+                $summaries[$contentId]['likes_count']++;
+            } elseif ($reactionValue === -1) {
+                $summaries[$contentId]['dislikes_count']++;
+            }
+
+            if ($userId !== null && (string) ($row['user_id'] ?? '') === $userId) {
+                $summaries[$contentId]['user_reaction'] = $reactionValue;
+            }
+        }
+
+        foreach ($commentRows as $row) {
+            $contentId = (string) ($row[$idColumn] ?? '');
+            if (isset($summaries[$contentId])) {
+                $summaries[$contentId]['comments_count']++;
+            }
+        }
+
+        foreach ($items as &$item) {
+            $item = [
+                ...$item,
+                ...($summaries[(string) ($item['id'] ?? '')] ?? []),
+            ];
+        }
+    }
+
+    private function idColumnForType(string $type): string
+    {
+        return match ($type) {
+            'paper' => 'paper_id',
+            'post' => 'post_id',
+            default => throw new RuntimeException('Unsupported content type.'),
+        };
     }
 
     /**
@@ -619,6 +840,15 @@ class SupabaseAdminContentService
                 ? (int) $row['pdf_file_size']
                 : null,
             'pdf_url' => (string) ($row['pdf_url'] ?? ''),
+            'pdf_view_url' => $this->publicStorageUrl(
+                bucket: 'papers-pdf',
+                path: (string) ($row['pdf_url'] ?? ''),
+            ),
+            'pdf_download_url' => $this->publicStorageUrl(
+                bucket: 'papers-pdf',
+                path: (string) ($row['pdf_url'] ?? ''),
+                downloadName: (string) ($row['pdf_file_name'] ?? 'document.pdf'),
+            ),
         ];
     }
 
@@ -831,7 +1061,11 @@ class SupabaseAdminContentService
         return http_build_query($params, '', '&', PHP_QUERY_RFC3986);
     }
 
-    private function publicStorageUrl(string $bucket, string $path): string
+    private function publicStorageUrl(
+        string $bucket,
+        string $path,
+        ?string $downloadName = null,
+    ): string
     {
         if ($path === '') {
             return '';
@@ -843,7 +1077,12 @@ class SupabaseAdminContentService
 
         $supabaseUrl = rtrim((string) config('services.supabase.url'), '/');
         $encodedPath = str_replace('%2F', '/', rawurlencode($path));
+        $url = $supabaseUrl.'/storage/v1/object/public/'.$bucket.'/'.$encodedPath;
 
-        return $supabaseUrl.'/storage/v1/object/public/'.$bucket.'/'.$encodedPath;
+        if ($downloadName !== null && trim($downloadName) !== '') {
+            return $url.'?download='.rawurlencode($downloadName);
+        }
+
+        return $url;
     }
 }

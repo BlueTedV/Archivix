@@ -1,5 +1,5 @@
 @extends('layouts.site')
-@section('title', 'Login')
+@section('title', 'Masuk / Daftar')
 
 @section('styles')
 <style>
@@ -11,7 +11,7 @@
         padding: 40px 20px;
     }
 
-    .auth-box { width: 100%; max-width: 440px; }
+    .auth-box { width: 100%; max-width: 480px; }
 
     .auth-header { margin-bottom: 24px; }
     .auth-header h2 { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
@@ -28,6 +28,36 @@
         color: #1d72da;
         font-weight: 800;
         text-decoration: none;
+    }
+
+    .auth-switch {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        padding: 6px;
+        margin-bottom: 20px;
+        border-radius: 16px;
+        background: #eef4fb;
+        border: 1px solid #d6deea;
+    }
+
+    .auth-switch a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        border-radius: 12px;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 800;
+        text-decoration: none;
+        transition: 0.15s ease;
+    }
+
+    .auth-switch a.active {
+        background: #ffffff;
+        color: #132238;
+        box-shadow: 0 8px 18px rgba(14, 30, 56, 0.08);
     }
 
     .alert {
@@ -70,14 +100,28 @@
 @endsection
 
 @section('content')
+@php
+    $authMode = $authMode ?? 'login';
+    $isRegister = $authMode === 'register';
+@endphp
+
 <div class="auth-page">
     <div class="auth-box">
         <div class="auth-header">
-            <h2>Masuk ke Archivix</h2>
-            <p>Gunakan akun Supabase kamu untuk masuk ke Archivix. Setelah login, dashboard akan menyesuaikan otomatis dengan role akunmu.</p>
+            <h2>{{ $isRegister ? 'Buat akun Archivix' : 'Masuk ke Archivix' }}</h2>
+            <p>
+                {{ $isRegister
+                    ? 'Daftar untuk mengakses ruang kerja Archivix dan melanjutkan aktivitas dari akun yang sama.'
+                    : 'Masuk untuk membuka dashboard Archivix sesuai akses akunmu.' }}
+            </p>
         </div>
 
         <div class="card">
+            <div class="auth-switch" aria-label="Pilih mode autentikasi">
+                <a href="{{ route('login') }}" class="{{ $isRegister ? '' : 'active' }}">Masuk</a>
+                <a href="{{ route('register') }}" class="{{ $isRegister ? 'active' : '' }}">Daftar</a>
+            </div>
+
             @if (session('success'))
                 <div class="alert alert-success">
                     {{ session('success') }}
@@ -90,44 +134,97 @@
                 </div>
             @endif
 
-            <form action="{{ route('user.login.submit') }}" method="POST">
-                @csrf
+            @if ($isRegister)
+                <form action="{{ route('user.register.submit') }}" method="POST">
+                    @csrf
 
-                <label class="form-label">Alamat Email</label>
-                <input
-                    type="email"
-                    name="email"
-                    class="form-input"
-                    placeholder="nama@email.com"
-                    value="{{ old('email') }}"
-                    required
-                    autofocus
-                >
+                    <label class="form-label">Nama</label>
+                    <input
+                        type="text"
+                        name="name"
+                        class="form-input"
+                        placeholder="Nama lengkap"
+                        value="{{ old('name') }}"
+                        required
+                        autofocus
+                    >
 
-                <label class="form-label">Password</label>
-                <input
-                    type="password"
-                    name="password"
-                    class="form-input"
-                    placeholder="Masukkan password"
-                    required
-                >
+                    <label class="form-label">Alamat Email</label>
+                    <input
+                        type="email"
+                        name="email"
+                        class="form-input"
+                        placeholder="nama@email.com"
+                        value="{{ old('email') }}"
+                        required
+                    >
 
-                <div class="remember-row">
-                    <label>
-                        <input type="checkbox" name="remember" value="1">
-                        <span>Ingat saya</span>
-                    </label>
+                    <label class="form-label">Password</label>
+                    <input
+                        type="password"
+                        name="password"
+                        class="form-input"
+                        placeholder="Minimal 6 karakter"
+                        required
+                    >
+
+                    <label class="form-label">Konfirmasi Password</label>
+                    <input
+                        type="password"
+                        name="password_confirmation"
+                        class="form-input"
+                        placeholder="Ulangi password"
+                        required
+                    >
+
+                    <button type="submit" class="btn btn-primary btn-full">
+                        Buat Akun
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    Sudah punya akun? <a href="{{ route('login') }}">Masuk sekarang</a>
                 </div>
+            @else
+                <form action="{{ route('user.login.submit') }}" method="POST">
+                    @csrf
 
-                <button type="submit" class="btn btn-primary btn-full">
-                    Masuk
-                </button>
-            </form>
+                    <label class="form-label">Alamat Email</label>
+                    <input
+                        type="email"
+                        name="email"
+                        class="form-input"
+                        placeholder="nama@email.com"
+                        value="{{ old('email') }}"
+                        required
+                        autofocus
+                    >
 
-            <div class="auth-footer">
-                Belum punya akun? <a href="{{ route('register') }}">Buat akun baru</a>
-            </div>
+                    <label class="form-label">Password</label>
+                    <input
+                        type="password"
+                        name="password"
+                        class="form-input"
+                        placeholder="Masukkan password"
+                        required
+                    >
+
+                    <div class="remember-row">
+                        <label>
+                            <input type="checkbox" name="remember" value="1">
+                            <span>Ingat saya</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full">
+                        Masuk
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    Belum punya akun? <a href="{{ route('register') }}">Daftar di sini</a>
+                </div>
+            @endif
         </div>
     </div>
 </div>
