@@ -6,13 +6,15 @@ import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/app_colors.dart';
-import '../core/services/paper_comment_service.dart';
-import '../core/services/post_comment_service.dart';
+import '../core/services/comment_service.dart';
+import '../core/services/professor_verification_service.dart';
 import '../core/utils/paper_review_status.dart';
 import 'edit_profile_screen.dart';
 import 'auth/login_screen.dart';
+import 'notification_settings_screen.dart';
 import 'papers/paper_detail_screen.dart';
 import 'posts/post_detail_screen.dart';
+import 'professor_verification_screen.dart';
 
 enum _HistoryFilter { all, papers, posts }
 
@@ -25,8 +27,9 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final supabase = Supabase.instance.client;
-  final _paperCommentService = PaperCommentService();
-  final _postCommentService = PostCommentService();
+  final _paperCommentService = CommentService(contentType: 'paper');
+  final _postCommentService = CommentService(contentType: 'post');
+  final _professorVerificationService = ProfessorVerificationService();
   final ScrollController _historyScrollController = ScrollController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _fullNameController = TextEditingController();
@@ -36,11 +39,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isSavingProfile = false;
   bool _isUploadingAvatar = false;
   bool _isLoadingHistory = true;
+  bool _isLoadingProfessorVerification = true;
   String? _profileError;
   String? _historyError;
+  String? _professorVerificationError;
   _HistoryFilter _historyFilter = _HistoryFilter.all;
 
   Map<String, dynamic>? _profile;
+  Map<String, dynamic>? _professorVerificationRequest;
   List<Map<String, dynamic>> _userPapers = [];
   List<Map<String, dynamic>> _userPosts = [];
   List<Map<String, dynamic>> _historyItems = [];
@@ -61,7 +67,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _refreshAllData() async {
-    await Future.wait([_loadProfile(), _loadUserHistory()]);
+    await Future.wait([
+      _loadProfile(),
+      _loadUserHistory(),
+      _loadProfessorVerificationStatus(),
+    ]);
   }
 
   Future<void> _loadProfile() async {
@@ -86,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final response = await supabase
           .from('profiles')
           .select(
-            'id, username, full_name, bio, avatar_path, created_at, updated_at',
+            'id, username, full_name, bio, avatar_path, is_verified_professor, professor_institution, professor_position, professor_department, professor_verified_at, created_at, updated_at',
           )
           .eq('id', user.id)
           .maybeSingle();
@@ -98,6 +108,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'full_name': null,
               'bio': null,
               'avatar_path': null,
+              'is_verified_professor': false,
+              'professor_institution': null,
+              'professor_position': null,
+              'professor_department': null,
+              'professor_verified_at': null,
             }
           : Map<String, dynamic>.from(response);
 
@@ -213,6 +228,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _loadProfessorVerificationStatus() async {
+    if (supabase.auth.currentUser == null) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingProfessorVerification = false;
+        _professorVerificationRequest = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingProfessorVerification = true;
+      _professorVerificationError = null;
+    });
+
+    try {
+      final request = await _professorVerificationService
+          .loadLatestForCurrentUser();
+
+      if (!mounted) return;
+      setState(() {
+        _professorVerificationRequest = request;
+        _isLoadingProfessorVerification = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _professorVerificationError = _friendlyProfessorVerificationError(
+          error,
+        );
+        _isLoadingProfessorVerification = false;
+      });
+    }
+  }
+
+  Future<void> _openProfessorVerificationForm() async {
+    final submitted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const ProfessorVerificationScreen()),
+    );
+
+    if (submitted == true) {
+      await _loadProfessorVerificationStatus();
+      if (!mounted) return;
+      _showMessage(
+        'Professor verification submitted for admin review.',
+        AppColors.success,
+      );
+    }
+  }
+
   Future<bool> _saveProfile({
     String? avatarPathOverride,
     bool clearAvatar = false,
@@ -275,7 +340,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           .from('profiles')
           .upsert(payload)
           .select(
-            'id, username, full_name, bio, avatar_path, created_at, updated_at',
+            'id, username, full_name, bio, avatar_path, is_verified_professor, professor_institution, professor_position, professor_department, professor_verified_at, created_at, updated_at',
           )
           .single();
 
@@ -557,6 +622,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         _buildRetroOverview(user: user, isCompact: isCompact),
                         const SizedBox(height: 18),
+                        _buildProfessorVerificationCenter(user),
+                        const SizedBox(height: 18),
                         _buildActivityCenter(
                           visibleHistory: _filteredHistoryItems,
                           historyPanelHeight: historyHeight,
@@ -607,6 +674,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildIdentityPanel({required User? user}) {
     final isAdmin = _isAdmin(user);
+    final isVerifiedProfessor = _profile?['is_verified_professor'] == true;
     final username = (_profile?['username'] as String?)?.trim();
     final fullName = (_profile?['full_name'] as String?)?.trim();
     final primaryLabel = _profileDisplayName(user);
@@ -684,6 +752,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                       ),
+                    ],
+                    if (isVerifiedProfessor) ...[
+                      const SizedBox(height: 8),
+                      _buildVerificationStatusBadge(true, 'approved'),
                     ],
                   ],
                 ),
@@ -1133,6 +1205,127 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildProfessorVerificationCenter(User? user) {
+    final isVerified = _profile?['is_verified_professor'] == true;
+    final request = _professorVerificationRequest;
+    final status = '${request?['status'] ?? ''}'.trim();
+
+    return _buildWindowPanel(
+      title: 'PROFESSOR VERIFICATION',
+      subtitle: 'Academic trust badge and manual verification status',
+      icon: Icons.workspace_premium_outlined,
+      accentColor: isVerified ? AppColors.success : AppColors.slatePrimary,
+      child: _isLoadingProfessorVerification
+          ? const Padding(
+              padding: EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Checking professor verification...',
+                    style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            )
+          : Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: _innerPanelDecoration(
+                backgroundColor: Colors.white,
+                borderColor: const Color(0xFFB5BBC6),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      _buildVerificationStatusBadge(isVerified, status),
+                      if (isVerified)
+                        _buildInfoBadge(
+                          icon: Icons.school_outlined,
+                          label: 'Institution',
+                          value:
+                              '${_profile?['professor_institution'] ?? 'Verified'}',
+                        )
+                      else if (request != null)
+                        _buildInfoBadge(
+                          icon: Icons.schedule_outlined,
+                          label: 'Submitted',
+                          value: _formatDate('${request['created_at']}'),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    isVerified
+                        ? 'Your profile is marked as a verified professor. This badge appears on your account and can be used for future academic privileges.'
+                        : _professorVerificationDescription(status),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                  if (request != null &&
+                      '${request['admin_notes'] ?? ''}'.trim().isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _buildFactRow(
+                      'Admin Note',
+                      '${request['admin_notes'] ?? ''}',
+                    ),
+                  ],
+                  if (_professorVerificationError != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      _professorVerificationError!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.errorDark,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _buildCommandButton(
+                        icon: Icons.verified_outlined,
+                        label: isVerified
+                            ? 'Already Verified'
+                            : (request == null || status == 'rejected')
+                            ? 'Apply for Verification'
+                            : 'Submit New Application',
+                        onPressed:
+                            user == null || isVerified || status == 'pending'
+                            ? null
+                            : _openProfessorVerificationForm,
+                        color: AppColors.slatePrimary,
+                        filled: true,
+                      ),
+                      _buildCommandButton(
+                        icon: Icons.refresh,
+                        label: 'Refresh Status',
+                        onPressed: _loadProfessorVerificationStatus,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+
   Widget _buildPreferencesCenter() {
     return _buildWindowPanel(
       title: 'SETTINGS DRAWER',
@@ -1146,7 +1339,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Notifications',
             subtitle: 'Configure your notification preferences',
             accentColor: AppColors.slatePrimary,
-            onTap: () => _showNotReadyMessage('Notifications'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const NotificationSettingsScreen(),
+              ),
+            ),
           ),
           const SizedBox(height: 10),
           _buildSettingItem(
@@ -1452,6 +1649,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildVerificationStatusBadge(bool isVerified, String status) {
+    final normalized = status.toLowerCase();
+    final label = isVerified
+        ? 'VERIFIED PROFESSOR'
+        : normalized == 'pending'
+        ? 'PENDING REVIEW'
+        : normalized == 'rejected'
+        ? 'NEEDS RESUBMISSION'
+        : 'NOT VERIFIED';
+    final color = isVerified
+        ? AppColors.success
+        : normalized == 'pending'
+        ? AppColors.amberDark
+        : normalized == 'rejected'
+        ? AppColors.errorDark
+        : AppColors.textMuted;
+    final background = isVerified
+        ? AppColors.success.withOpacity(0.12)
+        : normalized == 'pending'
+        ? AppColors.amberCardBg
+        : normalized == 'rejected'
+        ? AppColors.errorSurface
+        : AppColors.surfaceFaint;
+    final border = isVerified
+        ? AppColors.success.withOpacity(0.35)
+        : normalized == 'pending'
+        ? AppColors.amberBorder
+        : normalized == 'rejected'
+        ? AppColors.errorBorder
+        : AppColors.border;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: background,
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.verified_outlined, size: 15, color: color),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _professorVerificationDescription(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Your application is waiting for manual admin review. You can submit a new application after this one is reviewed.';
+      case 'approved':
+        return 'Your application was approved. Your verified professor badge is active on your profile.';
+      case 'rejected':
+        return 'Your previous application was rejected. Review the admin note and submit a clearer proof of affiliation.';
+      default:
+        return 'Submit your legal academic details and affiliation proof to receive a verified professor badge after admin review.';
+    }
   }
 
   Widget _buildCommandButton({
@@ -1863,7 +2130,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const Spacer(),
-                _buildPaperStatusTag(status),
+                if (!PaperReviewStatus.isPublished(status) ||
+                    _isAdmin(supabase.auth.currentUser))
+                  _buildPaperStatusTag(status),
               ],
             ),
             const SizedBox(height: 8),
@@ -2271,10 +2540,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (message.contains('profile-avatars')) {
       return 'Profile photo storage is not ready yet. Run profiles_setup.sql in Supabase first.';
     }
+    if (message.contains('is_verified_professor') ||
+        message.contains('professor_institution') ||
+        message.contains('schema cache')) {
+      return 'Professor verification profile fields are not ready yet. Run professor_verification_setup.sql in Supabase first.';
+    }
     if (message.contains('profiles')) {
       return 'Profile customization is not ready yet. Run profiles_setup.sql in Supabase first.';
     }
     return 'Unable to update profile right now.';
+  }
+
+  String _friendlyProfessorVerificationError(Object error) {
+    final message = error.toString();
+    if (message.contains('professor_verification_requests') ||
+        message.contains('professor-verification-proofs') ||
+        message.contains('is_verified_professor') ||
+        message.contains('schema cache')) {
+      return 'Professor verification is not ready yet. Run professor_verification_setup.sql in Supabase first.';
+    }
+    return message.replaceFirst('Exception: ', '');
   }
 
   String _historyFilterLabel(_HistoryFilter filter) {

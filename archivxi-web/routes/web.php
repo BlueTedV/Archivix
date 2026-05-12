@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminContentController;
+use App\Http\Controllers\ProfessorVerificationController;
 use App\Http\Controllers\UserAuthController;
 use App\Http\Controllers\UserDashboardController;
 use App\Services\SupabaseAdminContentService;
@@ -53,6 +54,16 @@ Route::get('/dashboard', function (SupabaseAdminContentService $contentService) 
         'loadError' => $loadError,
     ]);
 })->middleware('admin.session')->name('dashboard');
+
+Route::prefix('dashboard/professor-verification')
+    ->middleware('admin.session')
+    ->name('dashboard.professor-verification.')
+    ->group(function () {
+        Route::get('/', [ProfessorVerificationController::class, 'index'])->name('index');
+        Route::post('/{requestId}/approve', [ProfessorVerificationController::class, 'approve'])->name('approve');
+        Route::post('/{requestId}/reject', [ProfessorVerificationController::class, 'reject'])->name('reject');
+        Route::get('/{requestId}/proof', [ProfessorVerificationController::class, 'proofUrl'])->name('proof');
+    });
 
 Route::prefix('dashboard/posts')
     ->middleware('admin.session')

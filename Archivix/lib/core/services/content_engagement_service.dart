@@ -68,13 +68,13 @@ class ContentEngagementSummary {
 class ContentEngagementService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  String _tableForType(String contentType) {
-    return 'post_reactions';
-  }
+  // Both papers and posts share the unified `post_reactions` table,
+  // distinguished by which FK column is populated.
+  // ignore: avoid_unused_parameters
+  String _tableForType(String contentType) => 'post_reactions';
 
-  String _idColumnForType(String contentType) {
-    return contentType == 'paper' ? 'paper_id' : 'post_id';
-  }
+  String _idColumnForType(String contentType) =>
+      contentType == 'paper' ? 'paper_id' : 'post_id';
 
   int popularityScore({
     required int likesCount,

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/app_colors.dart';
-import '../core/services/paper_comment_service.dart';
-import '../core/services/post_comment_service.dart';
+import '../core/services/collection_service.dart';
+import '../core/services/comment_service.dart';
+import '../core/services/follow_service.dart';
+import 'collection_detail_screen.dart';
 import 'papers/paper_detail_screen.dart';
 import 'posts/post_detail_screen.dart';
 
@@ -23,14 +25,23 @@ class PublicProfileScreen extends StatefulWidget {
 
 class _PublicProfileScreenState extends State<PublicProfileScreen> {
   final _supabase = Supabase.instance.client;
-  final _paperCommentService = PaperCommentService();
-  final _postCommentService = PostCommentService();
+  final _paperCommentService = CommentService(contentType: 'paper');
+  final _postCommentService = CommentService(contentType: 'post');
+  final _followService = FollowService();
+  final _collectionService = CollectionService();
 
   Map<String, dynamic>? _profile;
   List<Map<String, dynamic>> _papers = [];
   List<Map<String, dynamic>> _posts = [];
+  List<CollectionModel> _publicCollections = [];
   bool _isLoading = true;
   String? _error;
+
+  // Follow state
+  bool _isFollowing = false;
+  bool _isTogglingFollow = false;
+  int _followerCount = 0;
+  int _followingCount = 0;
 
   @override
   void initState() {
@@ -54,7 +65,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         _supabase
             .from('profiles')
             .select(
-              'id, username, full_name, bio, avatar_path, created_at, updated_at',
+              'id, username, full_name, bio, avatar_path, is_verified_professor, professor_institution, professor_position, professor_department, created_at, updated_at',
             )
             .eq('id', widget.userId)
             .maybeSingle(),
@@ -86,11 +97,18 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
             ''')
             .eq('user_id', widget.userId)
             .order('created_at', ascending: false),
+        _collectionService.loadPublicCollectionsForUser(widget.userId),
+        _followService.isFollowing(widget.userId),
+        _followService.loadCounts(widget.userId),
       ]);
 
       final profileResponse = responses[0] as Map<String, dynamic>?;
       final papers = List<Map<String, dynamic>>.from(responses[1] as List);
       final posts = List<Map<String, dynamic>>.from(responses[2] as List);
+      final publicCollections = responses[3] as List<CollectionModel>;
+      final isFollowing = responses[4] as bool;
+      final counts = responses[5] as ({int followers, int following});
+
       await _paperCommentService.attachCommentCounts(papers);
       await _postCommentService.attachCommentCounts(posts);
 
@@ -111,6 +129,10 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
             : Map<String, dynamic>.from(profileResponse);
         _papers = papers;
         _posts = posts;
+        _publicCollections = publicCollections;
+        _isFollowing = isFollowing;
+        _followerCount = counts.followers;
+        _followingCount = counts.following;
         _isLoading = false;
       });
     } catch (error) {
@@ -120,6 +142,44 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         _error = error.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _toggleFollow() async {
+    if (_isTogglingFollow) return;
+    final currentUserId = _supabase.auth.currentUser?.id;
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please sign in to follow users.'),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+      return;
+    }
+    if (currentUserId == widget.userId) return; // Can't follow yourself.
+
+    setState(() => _isTogglingFollow = true);
+
+    try {
+      final nowFollowing = await _followService.toggle(widget.userId);
+      if (mounted) {
+        setState(() {
+          _isFollowing = nowFollowing;
+          _followerCount += nowFollowing ? 1 : -1;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.errorDark,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isTogglingFollow = false);
     }
   }
 
@@ -153,6 +213,26 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     return 'This researcher has not added a public description yet.';
   }
 
+  bool get _isVerifiedProfessor =>
+      _profile?['is_verified_professor'] == true;
+
+  String _professorLabel() {
+    final position = (_profile?['professor_position'] as String?)?.trim();
+    final institution =
+        (_profile?['professor_institution'] as String?)?.trim();
+
+    if (position != null &&
+        position.isNotEmpty &&
+        institution != null &&
+        institution.isNotEmpty) {
+      return '$position at $institution';
+    }
+    if (institution != null && institution.isNotEmpty) {
+      return institution;
+    }
+    return 'Verified Professor';
+  }
+
   String? _avatarUrl() {
     final avatarPath = (_profile?['avatar_path'] as String?)?.trim();
     if (avatarPath == null || avatarPath.isEmpty) {
@@ -181,6 +261,17 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     } catch (_) {
       return 'Unknown';
     }
+  }
+
+  String _formatCollectionDate(DateTime date) {
+    final localDate = date.toLocal();
+    final now = DateTime.now();
+    final difference = now.difference(localDate);
+
+    if (difference.inDays == 0) return 'Today';
+    if (difference.inDays == 1) return 'Yesterday';
+    if (difference.inDays < 7) return '${difference.inDays} days ago';
+    return '${localDate.day}/${localDate.month}/${localDate.year}';
   }
 
   String _authorsLabel(List<dynamic>? authors) {
@@ -573,6 +664,129 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     );
   }
 
+  Widget _buildCollectionCard(CollectionModel collection) {
+    final description = collection.description?.trim();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => CollectionDetailScreen(
+                collection: collection,
+                readOnly: true,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.collections_bookmark_outlined,
+                          size: 13,
+                          color: AppColors.slatePrimary,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'Public Collection',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.slatePrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _formatCollectionDate(collection.createdAt),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSubtle,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                collection.name,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (description != null && description.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.bookmark_outline,
+                    size: 14,
+                    color: AppColors.textSubtle,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${collection.itemCount} ${collection.itemCount == 1 ? 'item' : 'items'}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSubtle,
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 12,
+                    color: AppColors.textSubtle,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMetaChip(String label, {bool useAmber = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -713,6 +927,46 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                             ),
                           ),
                         ],
+                        if (_isVerifiedProfessor) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            constraints: const BoxConstraints(maxWidth: 280),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withOpacity(0.12),
+                              border: Border.all(
+                                color: AppColors.success.withOpacity(0.35),
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.verified,
+                                  size: 15,
+                                  color: AppColors.success,
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    _professorLabel(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.success,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         Text(
                           _description(),
@@ -724,6 +978,58 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 14),
+                        // Follow button — only shown when viewing someone else's profile.
+                        if (_supabase.auth.currentUser?.id != null &&
+                            _supabase.auth.currentUser!.id != widget.userId) ...[
+                          SizedBox(
+                            width: double.infinity,
+                            height: 40,
+                            child: _isTogglingFollow
+                                ? const Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  )
+                                : _isFollowing
+                                ? OutlinedButton.icon(
+                                    onPressed: _toggleFollow,
+                                    icon: const Icon(
+                                      Icons.person_remove_outlined,
+                                      size: 16,
+                                    ),
+                                    label: const Text('Unfollow'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.textSecondary,
+                                      side: const BorderSide(
+                                        color: AppColors.border,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  )
+                                : ElevatedButton.icon(
+                                    onPressed: _toggleFollow,
+                                    icon: const Icon(
+                                      Icons.person_add_outlined,
+                                      size: 16,
+                                    ),
+                                    label: const Text('Follow'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.slatePrimary,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
@@ -736,32 +1042,32 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                             children: [
                               Expanded(
                                 child: _buildFactColumn(
+                                  'Followers',
+                                  '$_followerCount',
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 30,
+                                color: AppColors.border,
+                              ),
+                              Expanded(
+                                child: _buildFactColumn(
+                                  'Following',
+                                  '$_followingCount',
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 30,
+                                color: AppColors.border,
+                              ),
+                              Expanded(
+                                child: _buildFactColumn(
                                   'Joined',
                                   _formatDate(
                                     _profile?['created_at'] as String?,
                                   ),
-                                ),
-                              ),
-                              Container(
-                                width: 1,
-                                height: 30,
-                                color: AppColors.border,
-                              ),
-                              Expanded(
-                                child: _buildFactColumn(
-                                  'Published Docs',
-                                  '${_papers.length}',
-                                ),
-                              ),
-                              Container(
-                                width: 1,
-                                height: 30,
-                                color: AppColors.border,
-                              ),
-                              Expanded(
-                                child: _buildFactColumn(
-                                  'Questions',
-                                  '${_posts.length}',
                                 ),
                               ),
                             ],
@@ -808,6 +1114,14 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                         borderColor: AppColors.amberBorder,
                         accentColor: AppColors.amberDark,
                       );
+                      final collectionsStat = _buildStatCard(
+                        label: 'COLLECTIONS',
+                        value: '${_publicCollections.length}',
+                        icon: Icons.collections_bookmark_outlined,
+                        backgroundColor: Colors.white,
+                        borderColor: AppColors.border,
+                        accentColor: AppColors.slatePrimary,
+                      );
 
                       if (shouldStack) {
                         return Column(
@@ -815,6 +1129,8 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                             papersStat,
                             const SizedBox(height: 12),
                             postsStat,
+                            const SizedBox(height: 12),
+                            collectionsStat,
                           ],
                         );
                       }
@@ -824,10 +1140,24 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                           Expanded(child: papersStat),
                           const SizedBox(width: 12),
                           Expanded(child: postsStat),
+                          const SizedBox(width: 12),
+                          Expanded(child: collectionsStat),
                         ],
                       );
                     },
                   ),
+                  const SizedBox(height: 20),
+                  _buildSectionHeader('Public Collections'),
+                  const SizedBox(height: 12),
+                  if (_publicCollections.isEmpty)
+                    _buildEmptySection(
+                      icon: Icons.collections_bookmark_outlined,
+                      title: 'No public collections yet',
+                      subtitle:
+                          'Public reading lists from this user will appear here.',
+                    )
+                  else
+                    ..._publicCollections.map(_buildCollectionCard),
                   const SizedBox(height: 20),
                   _buildSectionHeader('Published Documents'),
                   const SizedBox(height: 12),

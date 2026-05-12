@@ -31,8 +31,34 @@ Future<void> main() async {
 
 final supabase = Supabase.instance.client;
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  // Tracks whether the user is currently signed in so the app can react
+  // to session changes (expiry, sign-out on another device, etc.) without
+  // requiring a full restart.
+  late bool _isSignedIn;
+
+  @override
+  void initState() {
+    super.initState();
+    _isSignedIn = supabase.auth.currentSession != null;
+
+    // Listen for auth state changes for the lifetime of the app widget.
+    supabase.auth.onAuthStateChange.listen((data) {
+      final isNowSignedIn = data.session != null;
+      if (mounted && isNowSignedIn != _isSignedIn) {
+        setState(() {
+          _isSignedIn = isNowSignedIn;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +66,6 @@ class MyApp extends StatelessWidget {
       title: 'Archivix',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // 2000s style theme
         primarySwatch: Colors.blueGrey,
         primaryColor: const Color(0xFF4A5568),
         scaffoldBackgroundColor: const Color(0xFFE8E8E8),
@@ -97,9 +122,10 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: supabase.auth.currentSession != null
-          ? const HomeScreen()
-          : const LoginScreen(),
+      // Rebuild the root widget whenever auth state changes.
+      // HomeScreen and LoginScreen are both lightweight entry points so
+      // this is safe and keeps the routing logic in one place.
+      home: _isSignedIn ? const HomeScreen() : const LoginScreen(),
     );
   }
 }

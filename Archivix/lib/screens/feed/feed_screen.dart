@@ -2,15 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/content_engagement_service.dart';
-import '../../core/services/paper_comment_service.dart';
-import '../../core/services/post_comment_service.dart';
+import '../../core/services/comment_service.dart';
 import '../papers/paper_detail_screen.dart';
 import '../posts/post_detail_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   final VoidCallback onNavigateToSettings;
+  final VoidCallback onOpenNotifications;
+  final int unreadNotifications;
 
-  const FeedScreen({super.key, required this.onNavigateToSettings});
+  const FeedScreen({
+    super.key,
+    required this.onNavigateToSettings,
+    required this.onOpenNotifications,
+    required this.unreadNotifications,
+  });
 
   @override
   State<FeedScreen> createState() => _FeedScreenState();
@@ -19,8 +25,8 @@ class FeedScreen extends StatefulWidget {
 class _FeedScreenState extends State<FeedScreen> {
   final supabase = Supabase.instance.client;
   final _engagementService = ContentEngagementService();
-  final _paperCommentService = PaperCommentService();
-  final _postCommentService = PostCommentService();
+  final _paperCommentService = CommentService(contentType: 'paper');
+  final _postCommentService = CommentService(contentType: 'post');
   final Set<String> _pendingReactionKeys = <String>{};
   List<Map<String, dynamic>> _papers = [];
   List<Map<String, dynamic>> _posts = [];
@@ -55,6 +61,7 @@ class _FeedScreenState extends State<FeedScreen> {
               title,
               abstract,
               created_at,
+              user_id,
               views_count,
               categories (name),
               paper_authors (name)
@@ -97,6 +104,7 @@ class _FeedScreenState extends State<FeedScreen> {
       await _postCommentService.attachCommentCounts(posts);
       await _attachEngagementData(papers, 'paper');
       await _attachEngagementData(posts, 'post');
+      await _attachUploaderProfiles([...papers, ...posts]);
 
       List<Map<String, dynamic>> combined = [...papers, ...posts];
       _sortCombinedItems(combined);
@@ -146,6 +154,33 @@ class _FeedScreenState extends State<FeedScreen> {
     if (names.length == 1) return names[0];
     if (names.length == 2) return '${names[0]} and ${names[1]}';
     return '${names[0]} et al.';
+  }
+
+  String _uploaderLabel(Map<String, dynamic> item) {
+    final profile = item['uploader_profile'] as Map<String, dynamic>?;
+    final username = (profile?['username'] as String?)?.trim();
+    if (username != null && username.isNotEmpty) {
+      return '@$username';
+    }
+
+    final fullName = (profile?['full_name'] as String?)?.trim();
+    if (fullName != null && fullName.isNotEmpty) {
+      return fullName;
+    }
+
+    return 'Unknown user';
+  }
+
+  Future<void> _attachUploaderProfiles(List<Map<String, dynamic>> items) async {
+    if (items.isEmpty) return;
+
+    final profiles = await _paperCommentService.loadProfiles(
+      items.map((item) => '${item['user_id'] ?? ''}'),
+    );
+
+    for (final item in items) {
+      item['uploader_profile'] = profiles['${item['user_id']}'];
+    }
   }
 
   Future<void> _attachEngagementData(
@@ -325,7 +360,30 @@ class _FeedScreenState extends State<FeedScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, size: 20),
+            icon: widget.unreadNotifications > 0
+                ? Badge(
+                    label: Text(
+                      widget.unreadNotifications > 99
+                          ? '99+'
+                          : '${widget.unreadNotifications}',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      size: 20,
+                      color: Color(0xFFFFD54F),
+                    ),
+                  )
+                : const Icon(
+                    Icons.notifications_outlined,
+                    size: 20,
+                    color: Color(0xFFFFD54F),
+                  ),
+            onPressed: widget.onOpenNotifications,
+            tooltip: 'Alerts',
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, size: 20, color: Colors.white),
             onPressed: _loadContent,
             tooltip: 'Refresh',
           ),
@@ -642,6 +700,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       paperId: item['id'],
                       title: item['title'],
                       authors: _getAuthors(authors),
+                      uploadedBy: _uploaderLabel(item),
                       category: category?['name'] ?? 'Uncategorized',
                       date: _formatDate(item['created_at']),
                       views: item['views_count'] ?? 0,
@@ -676,6 +735,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       postId: item['id'],
                       title: item['title'],
                       content: item['content'],
+                      uploadedBy: _uploaderLabel(item),
                       category: category?['name'] ?? 'Uncategorized',
                       date: _formatDate(item['created_at']),
                       views: item['views_count'] ?? 0,
@@ -710,6 +770,7 @@ class _FeedScreenState extends State<FeedScreen> {
     required String paperId,
     required String title,
     required String authors,
+    required String uploadedBy,
     required String category,
     required String date,
     required int views,
@@ -751,6 +812,11 @@ class _FeedScreenState extends State<FeedScreen> {
             const SizedBox(height: 8),
             Text(
               authors,
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Uploaded by $uploadedBy',
               style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
             const SizedBox(height: 8),
@@ -856,6 +922,7 @@ class _FeedScreenState extends State<FeedScreen> {
     required String postId,
     required String title,
     required String content,
+    required String uploadedBy,
     required String category,
     required String date,
     required int views,
@@ -910,6 +977,11 @@ class _FeedScreenState extends State<FeedScreen> {
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Uploaded by $uploadedBy',
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
             const SizedBox(height: 8),
             Text(

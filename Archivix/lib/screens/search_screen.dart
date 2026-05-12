@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/app_colors.dart';
-import '../core/services/paper_comment_service.dart';
-import '../core/services/post_comment_service.dart';
+import '../core/services/comment_service.dart';
 import 'papers/paper_detail_screen.dart';
 import 'posts/post_detail_screen.dart';
 import 'public_profile_screen.dart';
@@ -19,8 +18,8 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _supabase = Supabase.instance.client;
-  final _paperCommentService = PaperCommentService();
-  final _postCommentService = PostCommentService();
+  final _paperCommentService = CommentService(contentType: 'paper');
+  final _postCommentService = CommentService(contentType: 'post');
   final _searchController = TextEditingController();
 
   Timer? _debounce;
@@ -154,6 +153,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     final papers = List<Map<String, dynamic>>.from(response);
     await _paperCommentService.attachCommentCounts(papers);
+    await _attachUploaderProfiles(papers);
     for (final paper in papers) {
       paper['content_type'] = 'paper';
     }
@@ -193,10 +193,23 @@ class _SearchScreenState extends State<SearchScreen> {
 
     final posts = List<Map<String, dynamic>>.from(response);
     await _postCommentService.attachCommentCounts(posts);
+    await _attachUploaderProfiles(posts);
     for (final post in posts) {
       post['content_type'] = 'post';
     }
     return posts;
+  }
+
+  Future<void> _attachUploaderProfiles(List<Map<String, dynamic>> items) async {
+    if (items.isEmpty) return;
+
+    final profiles = await _paperCommentService.loadProfiles(
+      items.map((item) => '${item['user_id'] ?? ''}'),
+    );
+
+    for (final item in items) {
+      item['uploader_profile'] = profiles['${item['user_id']}'];
+    }
   }
 
   Future<List<Map<String, dynamic>>> _loadUsers(String query) async {
@@ -341,6 +354,21 @@ class _SearchScreenState extends State<SearchScreen> {
     if (names.length == 1) return names.first;
     if (names.length == 2) return '${names[0]} and ${names[1]}';
     return '${names[0]} et al.';
+  }
+
+  String _uploaderLabel(Map<String, dynamic> item) {
+    final profile = item['uploader_profile'] as Map<String, dynamic>?;
+    final username = (profile?['username'] as String?)?.trim();
+    if (username != null && username.isNotEmpty) {
+      return '@$username';
+    }
+
+    final fullName = (profile?['full_name'] as String?)?.trim();
+    if (fullName != null && fullName.isNotEmpty) {
+      return fullName;
+    }
+
+    return 'Unknown user';
   }
 
   String _profileDisplayName(Map<String, dynamic> profile) {
@@ -488,10 +516,7 @@ class _SearchScreenState extends State<SearchScreen> {
       items: const [
         DropdownMenuItem(
           value: 'all',
-          child: Text(
-            'Documents + Questions + People',
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: Text('All'),
         ),
         DropdownMenuItem(value: 'papers', child: Text('Documents only')),
         DropdownMenuItem(value: 'posts', child: Text('Questions only')),
@@ -747,6 +772,14 @@ class _SearchScreenState extends State<SearchScreen> {
                   color: AppColors.textMuted,
                 ),
               ),
+              const SizedBox(height: 4),
+              Text(
+                'Uploaded by ${_uploaderLabel(item)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
+              ),
               const SizedBox(height: 8),
               Text(
                 '${item['abstract'] ?? ''}',
@@ -847,6 +880,14 @@ class _SearchScreenState extends State<SearchScreen> {
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Uploaded by ${_uploaderLabel(item)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
                 ),
               ),
               const SizedBox(height: 8),

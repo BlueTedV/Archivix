@@ -9,7 +9,9 @@ import 'package:device_info_plus/device_info_plus.dart';
 import '../papers/pdf_viewer_screen.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/content_engagement_service.dart';
-import '../../core/services/post_comment_service.dart';
+import '../../core/services/comment_service.dart';
+import '../../core/services/notification_service.dart';
+import '../../widgets/comment_reply_dialog.dart';
 import '../public_profile_screen.dart';
 import 'edit_post_screen.dart';
 import 'post_history_screen.dart';
@@ -41,7 +43,8 @@ class PostDetailScreen extends StatefulWidget {
 class _PostDetailScreenState extends State<PostDetailScreen> {
   final supabase = Supabase.instance.client;
   final _engagementService = ContentEngagementService();
-  final _postCommentService = PostCommentService();
+  final _postCommentService = CommentService(contentType: 'post');
+  final _notificationService = NotificationService();
   final TextEditingController _commentController = TextEditingController();
 
   Map<String, dynamic>? _post;
@@ -53,6 +56,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   String? _commentsError;
   bool _isReacting = false;
   bool _isSubmittingComment = false;
+  final Set<String> _reactingCommentIds = {};
   ContentEngagementSummary _engagementSummary =
       const ContentEngagementSummary();
 
@@ -125,6 +129,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         widget.postId,
       ]);
       postResponse['comments_count'] = commentCounts[widget.postId] ?? 0;
+      final uploaderProfiles = await _postCommentService.loadProfiles([
+        '${postResponse['user_id'] ?? ''}',
+      ]);
+      postResponse['uploader_profile'] =
+          uploaderProfiles['${postResponse['user_id']}'];
 
       // 2. Fetch attachments
       final attachmentsResponse = await supabase
@@ -192,6 +201,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       await supabase.rpc(
         'increment_post_views',
         params: {'post_id': widget.postId},
+      );
+      await _notificationService.checkViewMilestone(
+        contentType: 'post',
+        contentId: widget.postId,
       );
     } catch (e) {
       debugPrint('Error incrementing views: $e');
@@ -270,6 +283,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       'user_id': user.id,
       'author_label': authorLabel,
       'body': body,
+      'parent_comment_id': null,
       'created_at': DateTime.now().toUtc().toIso8601String(),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
       'is_pending': true,
@@ -290,7 +304,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     try {
       final inserted = await _postCommentService.insertComment(
-        postId: widget.postId,
+        contentId: widget.postId,
         userId: user.id,
         body: body,
         authorLabel: authorLabel,
@@ -340,6 +354,181 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   // ─── Document: open PDF in viewer ───────────────────────────────────────────
+
+  Future<void> _submitReply(
+    Map<String, dynamic> parentComment,
+    String body,
+  ) async {
+    final user = supabase.auth.currentUser;
+    final parentCommentId = '${parentComment['id'] ?? ''}'.trim();
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please sign in to reply.'),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+      return;
+    }
+
+    if (parentCommentId.isEmpty || parentComment['is_pending'] == true) {
+      return;
+    }
+
+    final authorLabel = _currentUserLabel(user);
+    final tempId = 'pending-${DateTime.now().microsecondsSinceEpoch}';
+    final optimisticReply = <String, dynamic>{
+      'id': tempId,
+      'post_id': widget.postId,
+      'user_id': user.id,
+      'author_label': authorLabel,
+      'body': body,
+      'parent_comment_id': parentCommentId,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+      'is_pending': true,
+      'profile': _currentUserProfile(user),
+      'likes_count': 0,
+      'dislikes_count': 0,
+      'user_reaction': null,
+    };
+
+    setState(() {
+      _commentsError = null;
+      _comments = [..._comments, optimisticReply];
+      if (_post != null) {
+        _post!['comments_count'] = _comments.length;
+      }
+    });
+
+    try {
+      final inserted = await _postCommentService.insertComment(
+        contentId: widget.postId,
+        userId: user.id,
+        body: body,
+        authorLabel: authorLabel,
+        parentCommentId: parentCommentId,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _comments = _comments
+            .map(
+              (comment) => comment['id'] == tempId
+                  ? <String, dynamic>{
+                      ...Map<String, dynamic>.from(inserted),
+                      'profile': _currentUserProfile(user),
+                    }
+                  : comment,
+            )
+            .toList();
+        if (_post != null) {
+          _post!['comments_count'] = _comments.length;
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _comments.removeWhere((comment) => comment['id'] == tempId);
+        _commentsError = _friendlyCommentsError(error);
+        if (_post != null) {
+          _post!['comments_count'] = _comments.length;
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_friendlyCommentsError(error)),
+          backgroundColor: AppColors.errorDark,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showReplyDialog(Map<String, dynamic> parentComment) async {
+    final body = await showDialog<String>(
+      context: context,
+      builder: (_) => const CommentReplyDialog(),
+    );
+
+    if (!mounted || body == null) return;
+    await _submitReply(parentComment, body);
+  }
+
+  CommentReactionSummary _commentReactionSummary(
+    Map<String, dynamic> comment,
+  ) {
+    return CommentReactionSummary(
+      likesCount: comment['likes_count'] as int? ?? 0,
+      dislikesCount: comment['dislikes_count'] as int? ?? 0,
+      userReaction: comment['user_reaction'] as int?,
+    );
+  }
+
+  void _updateCommentReaction(
+    String commentId,
+    CommentReactionSummary summary,
+  ) {
+    _comments = _comments.map((comment) {
+      if (comment['id'] != commentId) return comment;
+      return <String, dynamic>{
+        ...comment,
+        'likes_count': summary.likesCount,
+        'dislikes_count': summary.dislikesCount,
+        'user_reaction': summary.userReaction,
+      };
+    }).toList();
+  }
+
+  Future<void> _toggleCommentReaction(
+    Map<String, dynamic> comment,
+    int reactionValue,
+  ) async {
+    final commentId = '${comment['id'] ?? ''}'.trim();
+    if (commentId.isEmpty || comment['is_pending'] == true) return;
+
+    final previousSummary = _commentReactionSummary(comment);
+    final optimisticSummary = previousSummary.toggledReaction(reactionValue);
+
+    setState(() {
+      _reactingCommentIds.add(commentId);
+      _updateCommentReaction(commentId, optimisticSummary);
+    });
+
+    try {
+      final summary = await _postCommentService.toggleCommentReaction(
+        commentId: commentId,
+        reactionValue: reactionValue,
+      );
+
+      if (mounted) {
+        setState(() {
+          _updateCommentReaction(commentId, summary);
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _updateCommentReaction(commentId, previousSummary);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_friendlyCommentsError(error)),
+            backgroundColor: AppColors.errorDark,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _reactingCommentIds.remove(commentId);
+        });
+      }
+    }
+  }
 
   Future<void> _toggleReaction(int reactionValue) async {
     final previousSummary = _engagementSummary;
@@ -643,9 +832,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ) ||
         normalized.contains('relation "paper_comments" does not exist') ||
         normalized.contains('column "post_id" does not exist') ||
+        normalized.contains('column "parent_comment_id" does not exist') ||
+        normalized.contains('relation "public.comment_reactions" does not exist') ||
+        normalized.contains('relation "comment_reactions" does not exist') ||
         normalized.contains('could not find the table') ||
         normalized.contains('schema cache')) {
-      return 'Comments are not ready yet. Run paper_comments_setup.sql in Supabase first.';
+      return 'Comments need the latest reply/reaction schema. Run comments_replies_reactions_setup.sql in Supabase first.';
     }
     return 'Unable to load comments right now.\n$message';
   }
@@ -708,6 +900,21 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return 'Researcher';
   }
 
+  String _uploaderLabel() {
+    final profile = _post?['uploader_profile'] as Map<String, dynamic>?;
+    final username = (profile?['username'] as String?)?.trim();
+    if (username != null && username.isNotEmpty) {
+      return '@$username';
+    }
+
+    final fullName = (profile?['full_name'] as String?)?.trim();
+    if (fullName != null && fullName.isNotEmpty) {
+      return fullName;
+    }
+
+    return 'Unknown user';
+  }
+
   String? _commentSecondaryLabel(Map<String, dynamic>? profile) {
     final username = (profile?['username'] as String?)?.trim();
     final fullName = (profile?['full_name'] as String?)?.trim();
@@ -749,6 +956,18 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             PublicProfileScreen(userId: userId, initialProfile: initialProfile),
       ),
     );
+  }
+
+  List<Map<String, dynamic>> _topLevelComments() {
+    return _comments
+        .where((comment) => comment['parent_comment_id'] == null)
+        .toList();
+  }
+
+  List<Map<String, dynamic>> _repliesFor(String commentId) {
+    return _comments
+        .where((comment) => '${comment['parent_comment_id'] ?? ''}' == commentId)
+        .toList();
   }
 
   Widget _buildDiscussionSection() {
@@ -853,7 +1072,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ),
           )
         else
-          ..._comments.map(_buildCommentCard),
+          ..._topLevelComments().map(_buildCommentCard),
       ],
     );
   }
@@ -923,7 +1142,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  Widget _buildCommentCard(Map<String, dynamic> comment) {
+  Widget _buildCommentCard(Map<String, dynamic> comment, {int depth = 0}) {
     final isPending = comment['is_pending'] == true;
     final isOwnComment =
         comment['user_id'] != null &&
@@ -938,6 +1157,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final initials = displayName.trim().isNotEmpty
         ? displayName.replaceFirst('@', '').substring(0, 1).toUpperCase()
         : '?';
+    final commentId = '${comment['id'] ?? ''}';
+    final replies = _repliesFor(commentId);
+    final summary = _commentReactionSummary(comment);
+    final isCommentReacting = _reactingCommentIds.contains(commentId);
 
     final authorButton = InkWell(
       onTap: isPending ? null : () => _openProfileViewer(comment),
@@ -1014,13 +1237,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       ),
     );
 
-    return Opacity(
+    final card = Opacity(
       opacity: isPending ? 0.7 : 1,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
+        margin: EdgeInsets.only(
+          left: depth == 0 ? 0 : 18.0,
+          bottom: depth == 0 ? 10 : 8,
+        ),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: depth == 0 ? Colors.white : AppColors.surfaceFaint,
           border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(4),
         ),
@@ -1065,6 +1291,103 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 fontSize: 13,
                 color: AppColors.textSecondary,
                 height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _buildCommentReactionChip(
+                  icon: Icons.thumb_up_alt_outlined,
+                  activeIcon: Icons.thumb_up_alt,
+                  count: summary.likesCount,
+                  isActive: summary.userReaction == 1,
+                  activeColor: AppColors.success,
+                  onTap: isPending || isCommentReacting
+                      ? null
+                      : () => _toggleCommentReaction(comment, 1),
+                ),
+                _buildCommentReactionChip(
+                  icon: Icons.thumb_down_alt_outlined,
+                  activeIcon: Icons.thumb_down_alt,
+                  count: summary.dislikesCount,
+                  isActive: summary.userReaction == -1,
+                  activeColor: AppColors.errorDark,
+                  onTap: isPending || isCommentReacting
+                      ? null
+                      : () => _toggleCommentReaction(comment, -1),
+                ),
+                TextButton.icon(
+                  onPressed: isPending ? null : () => _showReplyDialog(comment),
+                  icon: const Icon(Icons.reply, size: 16),
+                  label: const Text('Reply'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        card,
+        ...replies.map(
+          (reply) => _buildCommentCard(
+            reply,
+            depth: depth >= 2 ? 2 : depth + 1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommentReactionChip({
+    required IconData icon,
+    required IconData activeIcon,
+    required int count,
+    required bool isActive,
+    required Color activeColor,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 9),
+        decoration: BoxDecoration(
+          color: isActive ? activeColor.withValues(alpha: 0.12) : Colors.white,
+          border: Border.all(
+            color: isActive
+                ? activeColor.withValues(alpha: 0.35)
+                : AppColors.border,
+          ),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isActive ? activeIcon : icon,
+              size: 15,
+              color: isActive ? activeColor : AppColors.textMuted,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isActive ? activeColor : AppColors.textMuted,
               ),
             ),
           ],
@@ -1730,13 +2053,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         actions: [
           if (_post != null)
             IconButton(
-              icon: const Icon(Icons.history),
+              icon: const Icon(Icons.history, color: Colors.white),
               onPressed: _openHistory,
               tooltip: 'View History',
             ),
           if (_isOwner)
             IconButton(
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(Icons.edit_outlined, color: Colors.white),
               onPressed: _openEdit,
               tooltip: 'Edit Question',
             ),
@@ -1869,6 +2192,26 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       fontSize: 13,
                       color: AppColors.amberDark,
                       fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.person_outline,
+                    size: 15,
+                    color: AppColors.amberDark,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Uploaded by ${_uploaderLabel()}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.amberDark,
+                      ),
                     ),
                   ),
                 ],
