@@ -448,8 +448,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         showSuccess: false,
       );
 
-      if (!mounted || !saved) return;
-      _showMessage('Profile photo updated.', AppColors.success);
+      if (mounted && saved) {
+        _showMessage('Profile photo updated.', AppColors.success);
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -457,10 +458,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
       _showMessage(_friendlyProfileError(error), AppColors.errorDark);
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isUploadingAvatar = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUploadingAvatar = false;
+        });
+      }
     }
   }
 
@@ -621,6 +623,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       children: [
                         _buildRetroOverview(user: user, isCompact: isCompact),
+                        const SizedBox(height: 18),
+                        _buildProfileCustomizationPanel(
+                          user: user,
+                          isCompact: isCompact,
+                        ),
                         const SizedBox(height: 18),
                         _buildProfessorVerificationCenter(user),
                         const SizedBox(height: 18),
@@ -1477,10 +1484,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [accentColor, accentColor.withOpacity(0.84)],
+                  colors: [accentColor, accentColor.withValues(alpha: 0.84)],
                 ),
                 border: Border(
-                  bottom: BorderSide(color: Colors.black.withOpacity(0.18)),
+                  bottom: BorderSide(
+                    color: Colors.black.withValues(alpha: 0.18),
+                  ),
                 ),
               ),
               child: Row(
@@ -1505,13 +1514,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withOpacity(0.88),
+                            color: Colors.white.withValues(alpha: 0.88),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (trailing != null) trailing,
+                  ?trailing,
                 ],
               ),
             ),
@@ -1668,14 +1677,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ? AppColors.errorDark
         : AppColors.textMuted;
     final background = isVerified
-        ? AppColors.success.withOpacity(0.12)
+        ? AppColors.success.withValues(alpha: 0.12)
         : normalized == 'pending'
         ? AppColors.amberCardBg
         : normalized == 'rejected'
         ? AppColors.errorSurface
         : AppColors.surfaceFaint;
     final border = isVerified
-        ? AppColors.success.withOpacity(0.35)
+        ? AppColors.success.withValues(alpha: 0.35)
         : normalized == 'pending'
         ? AppColors.amberBorder
         : normalized == 'rejected'
@@ -1750,7 +1759,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: _innerPanelDecoration(
-        backgroundColor: Colors.white.withOpacity(0.88),
+        backgroundColor: Colors.white.withValues(alpha: 0.88),
         borderColor: const Color(0xFFD0D4DB),
       ),
       child: Row(
@@ -1821,8 +1830,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.1),
-                  border: Border.all(color: accentColor.withOpacity(0.3)),
+                  color: accentColor.withValues(alpha: 0.1),
+                  border: Border.all(color: accentColor.withValues(alpha: 0.3)),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(icon, color: accentColor),
@@ -2433,14 +2442,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Image.network(
               avatarUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  _buildAvatarFallback(initials, size),
+              errorBuilder: (_, _, _) => _buildAvatarFallback(initials, size),
             )
           else
             _buildAvatarFallback(initials, size),
           if (_isUploadingAvatar)
             Container(
-              color: Colors.black.withOpacity(0.28),
+              color: Colors.black.withValues(alpha: 0.28),
               child: const Center(
                 child: SizedBox(
                   width: 22,

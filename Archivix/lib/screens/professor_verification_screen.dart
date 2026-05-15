@@ -219,7 +219,7 @@ class _ProfessorVerificationScreenState
                 const SizedBox(height: 14),
                 _fieldLabel('Proof Type'),
                 DropdownButtonFormField<String>(
-                  value: _proofType,
+                  initialValue: _proofType,
                   items: _proofTypes
                       .map(
                         (type) =>
@@ -235,7 +235,9 @@ class _ProfessorVerificationScreenState
                 OutlinedButton.icon(
                   onPressed: _isSubmitting ? null : _pickProof,
                   icon: const Icon(Icons.upload_file),
-                  label: Text(_proofFile == null ? 'Choose file' : 'Change file'),
+                  label: Text(
+                    _proofFile == null ? 'Choose file' : 'Change file',
+                  ),
                 ),
                 if (_proofFile != null) ...[
                   const SizedBox(height: 6),

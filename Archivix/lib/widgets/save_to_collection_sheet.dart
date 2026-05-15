@@ -287,7 +287,7 @@ class _SaveToCollectionSheetState extends State<_SaveToCollectionSheet> {
                     shrinkWrap: true,
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     itemCount: _collections.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (_, _) =>
                         const Divider(height: 1, indent: 56),
                     itemBuilder: (context, index) {
                       final collection = _collections[index];
@@ -310,9 +310,7 @@ class _SaveToCollectionSheetState extends State<_SaveToCollectionSheet> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
-                            isSaved
-                                ? Icons.bookmark
-                                : Icons.bookmark_border,
+                            isSaved ? Icons.bookmark : Icons.bookmark_border,
                             size: 18,
                             color: isSaved
                                 ? AppColors.slatePrimary
@@ -389,7 +387,7 @@ class _SaveToCollectionSheetState extends State<_SaveToCollectionSheet> {
                       Switch(
                         value: _newIsPublic,
                         onChanged: (v) => setState(() => _newIsPublic = v),
-                        activeColor: AppColors.slatePrimary,
+                        activeThumbColor: AppColors.slatePrimary,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       const SizedBox(width: 6),
@@ -402,7 +400,8 @@ class _SaveToCollectionSheetState extends State<_SaveToCollectionSheet> {
                       ),
                       const Spacer(),
                       TextButton(
-                        onPressed: () => setState(() => _showCreateForm = false),
+                        onPressed: () =>
+                            setState(() => _showCreateForm = false),
                         child: const Text('Cancel'),
                       ),
                       const SizedBox(width: 8),

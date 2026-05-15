@@ -458,9 +458,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     await _submitReply(parentComment, body);
   }
 
-  CommentReactionSummary _commentReactionSummary(
-    Map<String, dynamic> comment,
-  ) {
+  CommentReactionSummary _commentReactionSummary(Map<String, dynamic> comment) {
     return CommentReactionSummary(
       likesCount: comment['likes_count'] as int? ?? 0,
       dislikesCount: comment['dislikes_count'] as int? ?? 0,
@@ -833,7 +831,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         normalized.contains('relation "paper_comments" does not exist') ||
         normalized.contains('column "post_id" does not exist') ||
         normalized.contains('column "parent_comment_id" does not exist') ||
-        normalized.contains('relation "public.comment_reactions" does not exist') ||
+        normalized.contains(
+          'relation "public.comment_reactions" does not exist',
+        ) ||
         normalized.contains('relation "comment_reactions" does not exist') ||
         normalized.contains('could not find the table') ||
         normalized.contains('schema cache')) {
@@ -966,7 +966,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   List<Map<String, dynamic>> _repliesFor(String commentId) {
     return _comments
-        .where((comment) => '${comment['parent_comment_id'] ?? ''}' == commentId)
+        .where(
+          (comment) => '${comment['parent_comment_id'] ?? ''}' == commentId,
+        )
         .toList();
   }
 
@@ -1341,10 +1343,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       children: [
         card,
         ...replies.map(
-          (reply) => _buildCommentCard(
-            reply,
-            depth: depth >= 2 ? 2 : depth + 1,
-          ),
+          (reply) =>
+              _buildCommentCard(reply, depth: depth >= 2 ? 2 : depth + 1),
         ),
       ],
     );

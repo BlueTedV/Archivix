@@ -1,9 +1,9 @@
-```
 # Flutter/Dart specific
 .dart_tool/
 .packages
-pubspec.lock
 build/
+.flutter-plugins
+.flutter-plugins-dependencies
 
 # IDE
 .vscode/
@@ -16,12 +16,12 @@ build/
 
 # Environment
 .env
-.env.local
-*.env.*
+.env.*
+!.env.example
+!.env*.example
 
 # Dependencies
 node_modules/
-vendor/
 
 # OS generated files
 .DS_Store
@@ -30,4 +30,3 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
-```

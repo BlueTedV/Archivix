@@ -213,13 +213,11 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     return 'This researcher has not added a public description yet.';
   }
 
-  bool get _isVerifiedProfessor =>
-      _profile?['is_verified_professor'] == true;
+  bool get _isVerifiedProfessor => _profile?['is_verified_professor'] == true;
 
   String _professorLabel() {
     final position = (_profile?['professor_position'] as String?)?.trim();
-    final institution =
-        (_profile?['professor_institution'] as String?)?.trim();
+    final institution = (_profile?['professor_institution'] as String?)?.trim();
 
     if (position != null &&
         position.isNotEmpty &&
@@ -936,9 +934,11 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.success.withOpacity(0.12),
+                              color: AppColors.success.withValues(alpha: 0.12),
                               border: Border.all(
-                                color: AppColors.success.withOpacity(0.35),
+                                color: AppColors.success.withValues(
+                                  alpha: 0.35,
+                                ),
                               ),
                               borderRadius: BorderRadius.circular(4),
                             ),
@@ -980,7 +980,8 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                         const SizedBox(height: 14),
                         // Follow button — only shown when viewing someone else's profile.
                         if (_supabase.auth.currentUser?.id != null &&
-                            _supabase.auth.currentUser!.id != widget.userId) ...[
+                            _supabase.auth.currentUser!.id !=
+                                widget.userId) ...[
                           SizedBox(
                             width: double.infinity,
                             height: 40,

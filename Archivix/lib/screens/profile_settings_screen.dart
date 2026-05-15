@@ -39,6 +39,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _refreshAllData() async {
     await _loadUserHistory();
+    if (_isAdmin(supabase.auth.currentUser)) {
+      await _loadAdminQueue();
+    }
   }
 
   Future<void> _loadUserHistory() async {
@@ -216,7 +219,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      _showMessage('Could not update review status: $error', AppColors.errorDark);
+      _showMessage(
+        'Could not update review status: $error',
+        AppColors.errorDark,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -269,7 +275,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 controller: controller,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  hintText: 'Example: Please improve the abstract and replace the PDF with the final revision.',
+                  hintText:
+                      'Example: Please improve the abstract and replace the PDF with the final revision.',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -351,9 +358,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await supabase.auth.signOut();
     if (!mounted) return;
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
   void _showMessage(String message, Color backgroundColor) {
@@ -395,6 +402,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = supabase.auth.currentUser;
+    final isAdmin = _isAdmin(user);
 
     return Scaffold(
       appBar: AppBar(
@@ -424,15 +432,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     constraints: const BoxConstraints(maxWidth: 1120),
                     child: Column(
                       children: [
-                        _buildRetroOverview(
-                          user: user,
-                          isCompact: isCompact,
-                        ),
+                        _buildRetroOverview(user: user, isCompact: isCompact),
                         const SizedBox(height: 18),
                         _buildActivityCenter(
                           visibleHistory: _filteredHistoryItems,
                           historyPanelHeight: historyHeight,
                         ),
+                        if (isAdmin) ...[
+                          const SizedBox(height: 18),
+                          _buildAdminReviewCenter(),
+                        ],
                         const SizedBox(height: 18),
                         _buildPreferencesCenter(),
                         const SizedBox(height: 18),
@@ -449,15 +458,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildRetroOverview({
-    required User? user,
-    required bool isCompact,
-  }) {
+  Widget _buildRetroOverview({required User? user, required bool isCompact}) {
     final identityPanel = _buildIdentityPanel(user: user);
-    final summaryPanel = _buildSummaryPanel(
-      user: user,
-      isCompact: isCompact,
-    );
+    final summaryPanel = _buildSummaryPanel(user: user, isCompact: isCompact);
 
     return _buildWindowPanel(
       title: 'PROFILE CONSOLE',
@@ -583,10 +586,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSummaryPanel({
-    required User? user,
-    required bool isCompact,
-  }) {
+  Widget _buildSummaryPanel({required User? user, required bool isCompact}) {
     return Column(
       children: [
         Wrap(
@@ -791,11 +791,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.inbox_outlined,
-                color: AppColors.textSubtle,
-                size: 40,
-              ),
+              Icon(Icons.inbox_outlined, color: AppColors.textSubtle, size: 40),
               SizedBox(height: 10),
               Text(
                 'No documents waiting for review',
@@ -1097,7 +1093,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.lock_outline, size: 18, color: Colors.white),
+                            Icon(
+                              Icons.lock_outline,
+                              size: 18,
+                              color: Colors.white,
+                            ),
                             SizedBox(width: 8),
                             Text(
                               'Change Password',
@@ -1131,7 +1131,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                 ),
                                 validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Required';
+                                  if (value == null || value.isEmpty) {
+                                    return 'Required';
+                                  }
                                   return null;
                                 },
                               ),
@@ -1149,7 +1151,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                 ),
                                 validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Required';
+                                  if (value == null || value.isEmpty) {
+                                    return 'Required';
+                                  }
                                   if (value.length < 6) {
                                     return 'Must be at least 6 characters';
                                   }
@@ -1163,13 +1167,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 obscureText: true,
                                 textInputAction: TextInputAction.done,
                                 onFieldSubmitted: (_) async {
-                                  if (isLoading) return;
-                                  if (!formKey.currentState!.validate()) return;
+                                  if (isLoading) {
+                                    return;
+                                  }
+                                  if (!formKey.currentState!.validate()) {
+                                    return;
+                                  }
 
                                   setDialogState(() => isLoading = true);
 
                                   try {
-                                    final email = supabase.auth.currentUser?.email;
+                                    final email =
+                                        supabase.auth.currentUser?.email;
                                     if (email == null) {
                                       throw Exception('User not logged in');
                                     }
@@ -1185,19 +1194,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ),
                                     );
 
-                                    if (!mounted || !dialogContext.mounted) return;
+                                    if (!mounted || !dialogContext.mounted) {
+                                      return;
+                                    }
                                     await dismissDialogSafely(dialogContext);
-                                    if (!mounted) return;
+                                    if (!mounted) {
+                                      return;
+                                    }
                                     _showMessage(
                                       'Password changed successfully!',
                                       AppColors.success,
                                     );
                                   } on AuthException catch (error) {
-                                    if (!mounted) return;
-                                    _showMessage(error.message, AppColors.errorDark);
+                                    if (!mounted) {
+                                      return;
+                                    }
+                                    _showMessage(
+                                      error.message,
+                                      AppColors.errorDark,
+                                    );
                                     setDialogState(() => isLoading = false);
                                   } catch (error) {
-                                    if (!mounted) return;
+                                    if (!mounted) {
+                                      return;
+                                    }
                                     _showMessage(
                                       'Error: ${error.toString()}',
                                       AppColors.errorDark,
@@ -1213,7 +1233,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                 ),
                                 validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Required';
+                                  if (value == null || value.isEmpty) {
+                                    return 'Required';
+                                  }
                                   if (value != newPasswordController.text) {
                                     return 'Passwords do not match';
                                   }
@@ -1232,7 +1254,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             TextButton(
                               onPressed: isLoading
                                   ? null
-                                  : () async => dismissDialogSafely(dialogContext),
+                                  : () async =>
+                                        dismissDialogSafely(dialogContext),
                               child: const Text(
                                 'Cancel',
                                 style: TextStyle(color: AppColors.textMuted),
@@ -1243,43 +1266,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               onPressed: isLoading
                                   ? null
                                   : () async {
-                                      if (!formKey.currentState!.validate()) return;
+                                      if (!formKey.currentState!.validate()) {
+                                        return;
+                                      }
 
                                       setDialogState(() => isLoading = true);
 
                                       try {
-                                        final email = supabase.auth.currentUser?.email;
+                                        final email =
+                                            supabase.auth.currentUser?.email;
                                         if (email == null) {
                                           throw Exception('User not logged in');
                                         }
 
                                         await supabase.auth.signInWithPassword(
                                           email: email,
-                                          password: currentPasswordController.text,
+                                          password:
+                                              currentPasswordController.text,
                                         );
 
                                         await supabase.auth.updateUser(
                                           UserAttributes(
-                                            password: newPasswordController.text,
+                                            password:
+                                                newPasswordController.text,
                                           ),
                                         );
 
-                                        if (!mounted || !dialogContext.mounted) return;
-                                        await dismissDialogSafely(dialogContext);
-                                        if (!mounted) return;
+                                        if (!mounted ||
+                                            !dialogContext.mounted) {
+                                          return;
+                                        }
+                                        await dismissDialogSafely(
+                                          dialogContext,
+                                        );
+                                        if (!mounted) {
+                                          return;
+                                        }
                                         _showMessage(
                                           'Password changed successfully!',
                                           AppColors.success,
                                         );
                                       } on AuthException catch (error) {
-                                        if (!mounted) return;
+                                        if (!mounted) {
+                                          return;
+                                        }
                                         _showMessage(
                                           error.message,
                                           AppColors.errorDark,
                                         );
                                         setDialogState(() => isLoading = false);
                                       } catch (error) {
-                                        if (!mounted) return;
+                                        if (!mounted) {
+                                          return;
+                                        }
                                         _showMessage(
                                           'Error: ${error.toString()}',
                                           AppColors.errorDark,
@@ -1293,9 +1332,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       height: 16,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
-                                        ),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
                                       ),
                                     )
                                   : const Text('Save Password'),
@@ -1352,11 +1392,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [accentColor, accentColor.withOpacity(0.84)],
+                  colors: [accentColor, accentColor.withValues(alpha: 0.84)],
                 ),
                 border: Border(
                   bottom: BorderSide(
-                    color: Colors.black.withOpacity(0.18),
+                    color: Colors.black.withValues(alpha: 0.18),
                   ),
                 ),
               ),
@@ -1382,13 +1422,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withOpacity(0.88),
+                            color: Colors.white.withValues(alpha: 0.88),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (trailing != null) trailing,
+                  ?trailing,
                 ],
               ),
             ),
@@ -1557,7 +1597,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: _innerPanelDecoration(
-        backgroundColor: Colors.white.withOpacity(0.88),
+        backgroundColor: Colors.white.withValues(alpha: 0.88),
         borderColor: const Color(0xFFD0D4DB),
       ),
       child: Row(
@@ -1628,8 +1668,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.1),
-                  border: Border.all(color: accentColor.withOpacity(0.3)),
+                  color: accentColor.withValues(alpha: 0.1),
+                  border: Border.all(color: accentColor.withValues(alpha: 0.3)),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(icon, color: accentColor),
@@ -1893,8 +1933,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String status,
     required String? rejectionReason,
   }) {
-    final preview =
-        abstract.trim().isEmpty ? 'No abstract provided.' : abstract;
+    final preview = abstract.trim().isEmpty
+        ? 'No abstract provided.'
+        : abstract;
 
     return InkWell(
       onTap: () {

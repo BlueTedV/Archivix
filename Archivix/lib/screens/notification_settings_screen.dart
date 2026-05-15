@@ -27,10 +27,12 @@ class _NotificationSettingsScreenState
   Future<void> _load() async {
     setState(() => _isLoading = true);
     final prefs = await _service.loadPreferences();
-    if (mounted) setState(() {
-      _prefs = prefs;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _prefs = prefs;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _save(NotificationPreferences updated) async {
@@ -88,8 +90,7 @@ class _NotificationSettingsScreenState
                   title: 'Document Approved',
                   subtitle: 'When an admin publishes your document',
                   value: _prefs.paperApproved,
-                  onChanged: (v) =>
-                      _save(_prefs.copyWith(paperApproved: v)),
+                  onChanged: (v) => _save(_prefs.copyWith(paperApproved: v)),
                 ),
                 _buildToggle(
                   icon: Icons.cancel_outlined,
@@ -97,8 +98,7 @@ class _NotificationSettingsScreenState
                   title: 'Document Rejected',
                   subtitle: 'When an admin returns your document with feedback',
                   value: _prefs.paperRejected,
-                  onChanged: (v) =>
-                      _save(_prefs.copyWith(paperRejected: v)),
+                  onChanged: (v) => _save(_prefs.copyWith(paperRejected: v)),
                 ),
                 _buildToggle(
                   icon: Icons.comment_outlined,
@@ -106,8 +106,7 @@ class _NotificationSettingsScreenState
                   title: 'New Comment',
                   subtitle: 'When someone comments on your content',
                   value: _prefs.postComment,
-                  onChanged: (v) =>
-                      _save(_prefs.copyWith(postComment: v)),
+                  onChanged: (v) => _save(_prefs.copyWith(postComment: v)),
                 ),
                 _buildToggle(
                   icon: Icons.thumb_up_alt_outlined,
@@ -115,8 +114,7 @@ class _NotificationSettingsScreenState
                   title: 'Content Liked',
                   subtitle: 'When someone likes your document or question',
                   value: _prefs.contentLiked,
-                  onChanged: (v) =>
-                      _save(_prefs.copyWith(contentLiked: v)),
+                  onChanged: (v) => _save(_prefs.copyWith(contentLiked: v)),
                 ),
                 _buildToggle(
                   icon: Icons.bar_chart,
@@ -124,8 +122,7 @@ class _NotificationSettingsScreenState
                   title: 'View Milestones',
                   subtitle: 'When your content reaches 100, 500, 1 000 views…',
                   value: _prefs.milestoneViews,
-                  onChanged: (v) =>
-                      _save(_prefs.copyWith(milestoneViews: v)),
+                  onChanged: (v) => _save(_prefs.copyWith(milestoneViews: v)),
                 ),
                 const SizedBox(height: 8),
                 _buildSectionHeader('Social'),
@@ -135,8 +132,7 @@ class _NotificationSettingsScreenState
                   title: 'New Follower',
                   subtitle: 'When someone starts following you',
                   value: _prefs.newFollower,
-                  onChanged: (v) =>
-                      _save(_prefs.copyWith(newFollower: v)),
+                  onChanged: (v) => _save(_prefs.copyWith(newFollower: v)),
                 ),
                 _buildToggle(
                   icon: Icons.upload_file_outlined,
@@ -144,8 +140,7 @@ class _NotificationSettingsScreenState
                   title: 'Following Activity',
                   subtitle: 'When someone you follow uploads new content',
                   value: _prefs.followingUpload,
-                  onChanged: (v) =>
-                      _save(_prefs.copyWith(followingUpload: v)),
+                  onChanged: (v) => _save(_prefs.copyWith(followingUpload: v)),
                 ),
               ],
             ),
@@ -212,7 +207,7 @@ class _NotificationSettingsScreenState
           style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
         ),
         value: value,
-        activeColor: AppColors.slatePrimary,
+        activeThumbColor: AppColors.slatePrimary,
         onChanged: _isSaving ? null : onChanged,
       ),
     );

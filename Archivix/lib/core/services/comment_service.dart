@@ -111,9 +111,7 @@ class CommentService {
     }
   }
 
-  Future<void> attachCommentCounts(
-    List<Map<String, dynamic>> items,
-  ) async {
+  Future<void> attachCommentCounts(List<Map<String, dynamic>> items) async {
     if (items.isEmpty) return;
 
     final counts = await loadCommentCounts(
@@ -170,7 +168,7 @@ class CommentService {
           'user_id': userId,
           'author_label': authorLabel,
           'body': body,
-          if (parentCommentId != null) 'parent_comment_id': parentCommentId,
+          'parent_comment_id': ?parentCommentId,
         })
         .select(
           'id, $_idColumn, user_id, author_label, body, parent_comment_id, created_at, updated_at',
@@ -234,8 +232,7 @@ class CommentService {
 
       for (final row in response) {
         final commentId = '${row['comment_id']}';
-        final existing =
-            summaries[commentId] ?? const CommentReactionSummary();
+        final existing = summaries[commentId] ?? const CommentReactionSummary();
         final reactionValue = row['reaction_value'] as int;
 
         summaries[commentId] = existing.copyWith(
@@ -276,7 +273,10 @@ class CommentService {
         'reaction_value': reactionValue,
       });
     } else if (existing['reaction_value'] == reactionValue) {
-      await _supabase.from('comment_reactions').delete().eq('id', existing['id']);
+      await _supabase
+          .from('comment_reactions')
+          .delete()
+          .eq('id', existing['id']);
     } else {
       await _supabase
           .from('comment_reactions')
@@ -284,10 +284,9 @@ class CommentService {
           .eq('id', existing['id']);
     }
 
-    final summaries = await loadCommentReactionSummaries(
-      [commentId],
-      userId: userId,
-    );
+    final summaries = await loadCommentReactionSummaries([
+      commentId,
+    ], userId: userId);
     return summaries[commentId] ?? const CommentReactionSummary();
   }
 

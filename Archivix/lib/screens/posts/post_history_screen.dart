@@ -91,7 +91,8 @@ class _PostHistoryScreenState extends State<PostHistoryScreen> {
     final fileName = '${attachment['file_name'] ?? 'Attachment'}';
     final mimeType = '${attachment['mime_type'] ?? ''}'.toLowerCase();
 
-    if (mimeType == 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
+    if (mimeType == 'application/pdf' ||
+        fileName.toLowerCase().endsWith('.pdf')) {
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -111,7 +112,7 @@ class _PostHistoryScreenState extends State<PostHistoryScreen> {
             child: Image.network(
               publicUrl,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Padding(
+              errorBuilder: (_, _, _) => const Padding(
                 padding: EdgeInsets.all(24),
                 child: Text('Could not open archived image.'),
               ),
@@ -143,7 +144,9 @@ class _PostHistoryScreenState extends State<PostHistoryScreen> {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Storage permission is required to download files.'),
+              content: Text(
+                'Storage permission is required to download files.',
+              ),
               backgroundColor: AppColors.errorDark,
             ),
           );
@@ -463,8 +466,8 @@ class _PostHistoryScreenState extends State<PostHistoryScreen> {
                                     onPressed: _isDownloading[actionKey] == true
                                         ? null
                                         : () => _openArchivedAttachment(
-                                              attachmentMap,
-                                            ),
+                                            attachmentMap,
+                                          ),
                                     icon: _isDownloading[actionKey] == true
                                         ? const SizedBox(
                                             width: 14,
@@ -477,10 +480,10 @@ class _PostHistoryScreenState extends State<PostHistoryScreen> {
                                             fileType == 'image'
                                                 ? Icons.image_outlined
                                                 : fileName
-                                                          .toLowerCase()
-                                                          .endsWith('.pdf')
-                                                    ? Icons.picture_as_pdf
-                                                    : Icons.attach_file,
+                                                      .toLowerCase()
+                                                      .endsWith('.pdf')
+                                                ? Icons.picture_as_pdf
+                                                : Icons.attach_file,
                                             size: 16,
                                           ),
                                     label: Text(

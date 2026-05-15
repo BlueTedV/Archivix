@@ -514,10 +514,7 @@ class _SearchScreenState extends State<SearchScreen> {
         border: OutlineInputBorder(),
       ),
       items: const [
-        DropdownMenuItem(
-          value: 'all',
-          child: Text('All'),
-        ),
+        DropdownMenuItem(value: 'all', child: Text('All')),
         DropdownMenuItem(value: 'papers', child: Text('Documents only')),
         DropdownMenuItem(value: 'posts', child: Text('Questions only')),
         DropdownMenuItem(value: 'users', child: Text('People only')),

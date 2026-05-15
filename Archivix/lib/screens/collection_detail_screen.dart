@@ -180,7 +180,7 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
             : ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: _items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) => _buildItemCard(_items[index]),
               ),
       ),
@@ -233,9 +233,7 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
                         ? AppColors.surfaceLight
                         : AppColors.amberSurface,
                     border: Border.all(
-                      color: isPaper
-                          ? AppColors.border
-                          : AppColors.amberBorder,
+                      color: isPaper ? AppColors.border : AppColors.amberBorder,
                     ),
                     borderRadius: BorderRadius.circular(4),
                   ),

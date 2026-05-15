@@ -21,7 +21,9 @@ abstract class AppColors {
   static const Color slatePrimary = Color(0xFF4A5568);
 
   /// Welcome banner background
-  static const Color slateBanner = Color(0xFF4A5568); // same hue, aliased for intent clarity
+  static const Color slateBanner = Color(
+    0xFF4A5568,
+  ); // same hue, aliased for intent clarity
 
   // ─── Borders & Backgrounds ────────────────────────────────────────────────
   /// Standard card / input border
@@ -78,4 +80,4 @@ abstract class AppColors {
   // ─── Error variants ───────────────────────────────────────────────────────
   /// Error color for borders/icons
   static const Color error = Color(0xFFEF4444);
-} 
+}

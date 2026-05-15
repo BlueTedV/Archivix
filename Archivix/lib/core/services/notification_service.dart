@@ -129,9 +129,9 @@ class NotificationService {
           .order('created_at', ascending: false)
           .limit(limit);
 
-      return List<Map<String, dynamic>>.from(rows)
-          .map(AppNotification.fromMap)
-          .toList();
+      return List<Map<String, dynamic>>.from(
+        rows,
+      ).map(AppNotification.fromMap).toList();
     } catch (e) {
       debugPrint('NotificationService.loadNotifications error: $e');
       return [];
@@ -178,10 +178,7 @@ class NotificationService {
   }
 
   Future<void> deleteNotification(String notificationId) async {
-    await _supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId);
+    await _supabase.from('notifications').delete().eq('id', notificationId);
   }
 
   // ─── Preferences ─────────────────────────────────────────────────────────
@@ -209,9 +206,10 @@ class NotificationService {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
 
-    await _supabase
-        .from('notification_preferences')
-        .upsert({'user_id': userId, ...prefs.toMap()});
+    await _supabase.from('notification_preferences').upsert({
+      'user_id': userId,
+      ...prefs.toMap(),
+    });
   }
 
   // ─── View milestone check ─────────────────────────────────────────────────
@@ -222,10 +220,10 @@ class NotificationService {
     required String contentId,
   }) async {
     try {
-      await _supabase.rpc('check_and_notify_view_milestone', params: {
-        'p_content_type': contentType,
-        'p_content_id': contentId,
-      });
+      await _supabase.rpc(
+        'check_and_notify_view_milestone',
+        params: {'p_content_type': contentType, 'p_content_id': contentId},
+      );
     } catch (e) {
       // Non-critical — silently ignore.
       debugPrint('NotificationService.checkViewMilestone error: $e');

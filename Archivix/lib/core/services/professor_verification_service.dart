@@ -47,7 +47,9 @@ class ProfessorVerificationService {
       '.ac.th',
     ];
 
-    return acceptedInstitutionalSuffixes.any((suffix) => domain.endsWith(suffix));
+    return acceptedInstitutionalSuffixes.any(
+      (suffix) => domain.endsWith(suffix),
+    );
   }
 
   static String? contentTypeForProofExtension(String extension) {
@@ -99,17 +101,13 @@ class ProfessorVerificationService {
     final fileOptions = FileOptions(upsert: false, contentType: contentType);
 
     if (bytes != null) {
-      await _supabase.storage.from(proofBucket).uploadBinary(
-        storagePath,
-        bytes,
-        fileOptions: fileOptions,
-      );
+      await _supabase.storage
+          .from(proofBucket)
+          .uploadBinary(storagePath, bytes, fileOptions: fileOptions);
     } else if (file != null) {
-      await _supabase.storage.from(proofBucket).upload(
-        storagePath,
-        file,
-        fileOptions: fileOptions,
-      );
+      await _supabase.storage
+          .from(proofBucket)
+          .upload(storagePath, file, fileOptions: fileOptions);
     } else {
       throw Exception('Could not read the selected proof file.');
     }

@@ -4,28 +4,127 @@ import 'core/config/app_config.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home_screen.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    AppConfig.validate();
+  runApp(const ArchivixApp());
+}
 
-    await Supabase.initialize(
-      url: AppConfig.supabaseUrl,
-      anonKey: AppConfig.supabaseAnonKey,
-    );
+Future<void> initializeArchivix() async {
+  AppConfig.validate();
 
-    runApp(const MyApp());
-  } catch (error, stackTrace) {
-    FlutterError.reportError(
-      FlutterErrorDetails(
-        exception: error,
-        stack: stackTrace,
-        library: 'archivix startup',
-        context: ErrorDescription('while initializing the app'),
+  await Supabase.initialize(
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseAnonKey,
+  );
+}
+
+ThemeData buildArchivixTheme() {
+  return ThemeData(
+    primarySwatch: Colors.blueGrey,
+    primaryColor: const Color(0xFF4A5568),
+    scaffoldBackgroundColor: const Color(0xFFE8E8E8),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFF4A5568),
+      elevation: 2,
+      titleTextStyle: TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w500,
       ),
-    );
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF4A5568),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        elevation: 2,
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: const BorderSide(color: Color(0xFF9CA3AF)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: const BorderSide(color: Color(0xFF9CA3AF)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: const BorderSide(color: Color(0xFF4A5568), width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    ),
+    cardTheme: const CardThemeData(
+      color: Colors.white,
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(4)),
+        side: BorderSide(color: Color(0xFFD1D5DB), width: 1),
+      ),
+    ),
+  );
+}
 
-    runApp(StartupErrorApp(error: error));
+class ArchivixApp extends StatelessWidget {
+  const ArchivixApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Archivix',
+      debugShowCheckedModeBanner: false,
+      theme: buildArchivixTheme(),
+      home: const StartupGate(),
+    );
+  }
+}
+
+class StartupGate extends StatefulWidget {
+  const StartupGate({super.key});
+
+  @override
+  State<StartupGate> createState() => _StartupGateState();
+}
+
+class _StartupGateState extends State<StartupGate> {
+  late final Future<void> _startup = _initialize();
+
+  Future<void> _initialize() async {
+    try {
+      await initializeArchivix();
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'archivix startup',
+          context: ErrorDescription('while initializing the app'),
+        ),
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _startup,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return StartupErrorScreen(error: snapshot.error ?? 'Unknown error');
+        }
+
+        if (snapshot.connectionState == ConnectionState.done) {
+          return const MyApp();
+        }
+
+        return const StartupLoadingScreen();
+      },
+    );
   }
 }
 
@@ -62,71 +161,10 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Archivix',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blueGrey,
-        primaryColor: const Color(0xFF4A5568),
-        scaffoldBackgroundColor: const Color(0xFFE8E8E8),
-
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF4A5568),
-          elevation: 2,
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF4A5568),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4),
-            ),
-            elevation: 2,
-          ),
-        ),
-
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(4),
-            borderSide: const BorderSide(color: Color(0xFF9CA3AF)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(4),
-            borderSide: const BorderSide(color: Color(0xFF9CA3AF)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(4),
-            borderSide: const BorderSide(color: Color(0xFF4A5568), width: 2),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 14,
-          ),
-        ),
-
-        cardTheme: const CardThemeData(
-          color: Colors.white,
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(4)),
-            side: BorderSide(color: Color(0xFFD1D5DB), width: 1),
-          ),
-        ),
-      ),
-      // Rebuild the root widget whenever auth state changes.
-      // HomeScreen and LoginScreen are both lightweight entry points so
-      // this is safe and keeps the routing logic in one place.
-      home: _isSignedIn ? const HomeScreen() : const LoginScreen(),
-    );
+    // Rebuild the root widget whenever auth state changes.
+    // HomeScreen and LoginScreen are both lightweight entry points so
+    // this is safe and keeps the routing logic in one place.
+    return _isSignedIn ? const HomeScreen() : const LoginScreen();
   }
 }
 
@@ -140,45 +178,139 @@ class StartupErrorApp extends StatelessWidget {
     return MaterialApp(
       title: 'Archivix',
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        backgroundColor: const Color(0xFFE8E8E8),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'App failed to start',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                        ),
+      theme: buildArchivixTheme(),
+      home: StartupErrorScreen(error: error),
+    );
+  }
+}
+
+class StartupLoadingScreen extends StatelessWidget {
+  const StartupLoadingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFFE8E8E8),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ArchivixMark(),
+            SizedBox(height: 24),
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: Color(0xFF4A5568),
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Preparing your archive...',
+              style: TextStyle(
+                color: Color(0xFF374151),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class StartupErrorScreen extends StatelessWidget {
+  const StartupErrorScreen({super.key, required this.error});
+
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFE8E8E8),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'App failed to start',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Archivix could not finish its startup process. '
-                        'Check the error below and verify the Supabase configuration.',
-                      ),
-                      const SizedBox(height: 16),
-                      SelectableText(
-                        error.toString(),
-                        style: const TextStyle(color: Colors.redAccent),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Archivix could not finish its startup process. '
+                      'Check the error below and verify the Supabase configuration.',
+                    ),
+                    const SizedBox(height: 16),
+                    SelectableText(
+                      error.toString(),
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ArchivixMark extends StatelessWidget {
+  const _ArchivixMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xFF4A5568),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 16,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: const Text(
+            'A',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 34,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'Archivix',
+          style: TextStyle(
+            color: Color(0xFF1F2937),
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }

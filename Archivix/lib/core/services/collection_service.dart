@@ -32,7 +32,11 @@ class CollectionModel {
     );
   }
 
-  CollectionModel copyWith({String? name, String? description, bool? isPublic}) {
+  CollectionModel copyWith({
+    String? name,
+    String? description,
+    bool? isPublic,
+  }) {
     return CollectionModel(
       id: id,
       userId: userId,
@@ -64,9 +68,9 @@ class CollectionService {
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      final collections = List<Map<String, dynamic>>.from(rows)
-          .map(CollectionModel.fromMap)
-          .toList();
+      final collections = List<Map<String, dynamic>>.from(
+        rows,
+      ).map(CollectionModel.fromMap).toList();
 
       // Attach item counts.
       if (collections.isNotEmpty) {
@@ -118,9 +122,9 @@ class CollectionService {
           .eq('is_public', true)
           .order('created_at', ascending: false);
 
-      final collections = List<Map<String, dynamic>>.from(rows)
-          .map(CollectionModel.fromMap)
-          .toList();
+      final collections = List<Map<String, dynamic>>.from(
+        rows,
+      ).map(CollectionModel.fromMap).toList();
 
       return _attachItemCounts(collections);
     } catch (e) {
@@ -167,7 +171,9 @@ class CollectionService {
     bool isPublic = false,
   }) async {
     final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Please sign in to create collections.');
+    if (userId == null) {
+      throw Exception('Please sign in to create collections.');
+    }
 
     final row = await _supabase
         .from('collections')
@@ -224,9 +230,9 @@ class CollectionService {
           .select('id')
           .eq('user_id', userId);
 
-      final ids = List<Map<String, dynamic>>.from(myCollectionIds)
-          .map((r) => '${r['id']}')
-          .toList();
+      final ids = List<Map<String, dynamic>>.from(
+        myCollectionIds,
+      ).map((r) => '${r['id']}').toList();
 
       if (ids.isEmpty) return {};
 
@@ -237,9 +243,9 @@ class CollectionService {
           .eq('content_type', contentType)
           .eq('content_id', contentId);
 
-      return List<Map<String, dynamic>>.from(rows)
-          .map((r) => '${r['collection_id']}')
-          .toSet();
+      return List<Map<String, dynamic>>.from(
+        rows,
+      ).map((r) => '${r['collection_id']}').toSet();
     } catch (e) {
       debugPrint('CollectionService.collectionsContaining error: $e');
       return {};
@@ -321,14 +327,17 @@ class CollectionService {
         }
       }
 
-      return items.map((item) {
-        final key = '${item['content_type']}:${item['content_id']}';
-        return <String, dynamic>{
-          'item_id': item['id'],
-          'added_at': item['added_at'],
-          ...?contentMap[key],
-        };
-      }).where((item) => item.containsKey('id')).toList();
+      return items
+          .map((item) {
+            final key = '${item['content_type']}:${item['content_id']}';
+            return <String, dynamic>{
+              'item_id': item['id'],
+              'added_at': item['added_at'],
+              ...?contentMap[key],
+            };
+          })
+          .where((item) => item.containsKey('id'))
+          .toList();
     } catch (e) {
       debugPrint('CollectionService.loadCollectionItems error: $e');
       return [];

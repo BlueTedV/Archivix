@@ -178,7 +178,8 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
     final isSubmittingForReview = targetStatus == PaperReviewStatus.submitted;
     final isSavingDraft = targetStatus == PaperReviewStatus.draft;
     final requiresValidation =
-        isSubmittingForReview || normalizedCurrentStatus == PaperReviewStatus.published;
+        isSubmittingForReview ||
+        normalizedCurrentStatus == PaperReviewStatus.published;
 
     if (requiresValidation && !_formKey.currentState!.validate()) return;
 
@@ -189,7 +190,8 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
     final hasPdfReplacement =
         _selectedFile != null || _selectedFileBytes != null;
     final hasPdfRemoval = _removeCurrentPdf && hasExistingPdf;
-    final hasPdfAfterSave = hasPdfReplacement || (hasExistingPdf && !hasPdfRemoval);
+    final hasPdfAfterSave =
+        hasPdfReplacement || (hasExistingPdf && !hasPdfRemoval);
 
     if (isSavingDraft && title.isEmpty) {
       if (!mounted) return;
@@ -514,7 +516,9 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                         widget.paper['status'],
                       ),
                       border: Border.all(
-                        color: PaperReviewStatus.borderColor(widget.paper['status']),
+                        color: PaperReviewStatus.borderColor(
+                          widget.paper['status'],
+                        ),
                       ),
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -524,7 +528,9 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                         Icon(
                           PaperReviewStatus.icon(widget.paper['status']),
                           size: 18,
-                          color: PaperReviewStatus.textColor(widget.paper['status']),
+                          color: PaperReviewStatus.textColor(
+                            widget.paper['status'],
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -536,21 +542,28 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: PaperReviewStatus.textColor(widget.paper['status']),
+                                  color: PaperReviewStatus.textColor(
+                                    widget.paper['status'],
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                PaperReviewStatus.ownerDescription(widget.paper['status']),
+                                PaperReviewStatus.ownerDescription(
+                                  widget.paper['status'],
+                                ),
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: AppColors.textSecondary,
                                   height: 1.5,
                                 ),
                               ),
-                              if ((widget.paper['rejection_reason'] as String?) !=
+                              if ((widget.paper['rejection_reason']
+                                          as String?) !=
                                       null &&
-                                  '${widget.paper['rejection_reason']}'.trim().isNotEmpty) ...[
+                                  '${widget.paper['rejection_reason']}'
+                                      .trim()
+                                      .isNotEmpty) ...[
                                 const SizedBox(height: 8),
                                 Text(
                                   'Admin feedback: ${widget.paper['rejection_reason']}',

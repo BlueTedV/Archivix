@@ -254,10 +254,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
       _showMessage(_friendlyProfileError(error), AppColors.errorDark);
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isUploadingAvatar = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUploadingAvatar = false;
+        });
+      }
     }
   }
 
@@ -404,7 +405,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           _buildAvatarFallback(),
                         if (_isUploadingAvatar)
                           Container(
-                            color: Colors.black.withOpacity(0.28),
+                            color: Colors.black.withValues(alpha: 0.28),
                             child: const Center(
                               child: SizedBox(
                                 width: 22,

@@ -429,9 +429,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
     await _submitReply(parentComment, body);
   }
 
-  CommentReactionSummary _commentReactionSummary(
-    Map<String, dynamic> comment,
-  ) {
+  CommentReactionSummary _commentReactionSummary(Map<String, dynamic> comment) {
     return CommentReactionSummary(
       likesCount: comment['likes_count'] as int? ?? 0,
       dislikesCount: comment['dislikes_count'] as int? ?? 0,
@@ -1050,7 +1048,9 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
 
   List<Map<String, dynamic>> _repliesFor(String commentId) {
     return _comments
-        .where((comment) => '${comment['parent_comment_id'] ?? ''}' == commentId)
+        .where(
+          (comment) => '${comment['parent_comment_id'] ?? ''}' == commentId,
+        )
         .toList();
   }
 
@@ -1557,10 +1557,8 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
       children: [
         card,
         ...replies.map(
-          (reply) => _buildCommentCard(
-            reply,
-            depth: depth >= 2 ? 2 : depth + 1,
-          ),
+          (reply) =>
+              _buildCommentCard(reply, depth: depth >= 2 ? 2 : depth + 1),
         ),
       ],
     );
@@ -1623,7 +1621,8 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
         title: const Text('Document Details'),
         actions: [
           // Save to collection
-          if (_paper != null && PaperReviewStatus.isPublished(_paper!['status']))
+          if (_paper != null &&
+              PaperReviewStatus.isPublished(_paper!['status']))
             IconButton(
               icon: const Icon(Icons.star_border, color: Colors.white),
               tooltip: 'Save to Collection',

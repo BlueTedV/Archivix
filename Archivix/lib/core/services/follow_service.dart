@@ -29,7 +29,10 @@ class FollowService {
     try {
       final results = await Future.wait([
         _supabase.rpc('get_follower_count', params: {'target_user_id': userId}),
-        _supabase.rpc('get_following_count', params: {'target_user_id': userId}),
+        _supabase.rpc(
+          'get_following_count',
+          params: {'target_user_id': userId},
+        ),
       ]);
       return (
         followers: (results[0] as int?) ?? 0,
@@ -44,8 +47,12 @@ class FollowService {
   /// Follows [targetUserId]. Throws on error.
   Future<void> follow(String targetUserId) async {
     final currentUserId = _supabase.auth.currentUser?.id;
-    if (currentUserId == null) throw Exception('Please sign in to follow users.');
-    if (currentUserId == targetUserId) throw Exception('You cannot follow yourself.');
+    if (currentUserId == null) {
+      throw Exception('Please sign in to follow users.');
+    }
+    if (currentUserId == targetUserId) {
+      throw Exception('You cannot follow yourself.');
+    }
 
     await _supabase.from('user_follows').insert({
       'follower_id': currentUserId,
@@ -82,7 +89,9 @@ class FollowService {
   Future<List<Map<String, dynamic>>> loadFollowers(String userId) async {
     final rows = await _supabase
         .from('user_follows')
-        .select('follower_id, created_at, profiles!user_follows_follower_id_fkey(id, username, full_name, avatar_path, updated_at)')
+        .select(
+          'follower_id, created_at, profiles!user_follows_follower_id_fkey(id, username, full_name, avatar_path, updated_at)',
+        )
         .eq('following_id', userId)
         .order('created_at', ascending: false);
 
@@ -92,7 +101,9 @@ class FollowService {
   Future<List<Map<String, dynamic>>> loadFollowing(String userId) async {
     final rows = await _supabase
         .from('user_follows')
-        .select('following_id, created_at, profiles!user_follows_following_id_fkey(id, username, full_name, avatar_path, updated_at)')
+        .select(
+          'following_id, created_at, profiles!user_follows_following_id_fkey(id, username, full_name, avatar_path, updated_at)',
+        )
         .eq('follower_id', userId)
         .order('created_at', ascending: false);
 

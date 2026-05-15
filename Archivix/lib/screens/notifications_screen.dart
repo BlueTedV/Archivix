@@ -81,9 +81,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     } else if (contentType == 'post' && contentId != null) {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => PostDetailScreen(postId: contentId),
-        ),
+        MaterialPageRoute(builder: (_) => PostDetailScreen(postId: contentId)),
       );
     } else if (followerId != null) {
       Navigator.of(context).push(
@@ -165,7 +163,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             : ListView.separated(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 itemCount: _notifications.length,
-                separatorBuilder: (_, __) =>
+                separatorBuilder: (_, _) =>
                     const Divider(height: 1, indent: 16, endIndent: 16),
                 itemBuilder: (context, index) =>
                     _buildTile(_notifications[index]),

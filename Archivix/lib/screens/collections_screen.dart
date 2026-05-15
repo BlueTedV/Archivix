@@ -148,7 +148,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                   style: TextStyle(fontSize: 12),
                 ),
                 value: isPublic,
-                activeColor: AppColors.slatePrimary,
+                activeThumbColor: AppColors.slatePrimary,
                 onChanged: (v) => setDialogState(() => isPublic = v),
               ),
             ],
@@ -244,7 +244,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
             : ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: _collections.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) =>
                     _buildCollectionCard(_collections[index]),
               ),

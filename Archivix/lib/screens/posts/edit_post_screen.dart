@@ -272,9 +272,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
             storagePath,
           ]);
         } catch (error) {
-          debugPrint(
-            'Could not remove attachment file "$storagePath": $error',
-          );
+          debugPrint('Could not remove attachment file "$storagePath": $error');
         }
       }
     }
@@ -513,9 +511,11 @@ class _EditPostScreenState extends State<EditPostScreen> {
                             final type =
                                 (attachment['file_type'] as String?) ??
                                 _getFileType(
-                                  path.extension(
-                                    '${attachment['file_name'] ?? ''}',
-                                  ).replaceAll('.', ''),
+                                  path
+                                      .extension(
+                                        '${attachment['file_name'] ?? ''}',
+                                      )
+                                      .replaceAll('.', ''),
                                 );
 
                             return Padding(

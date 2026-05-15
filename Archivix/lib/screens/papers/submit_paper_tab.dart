@@ -204,7 +204,9 @@ class _SubmitPaperTabState extends State<SubmitPaperTab> {
               .from('papers-pdf')
               .uploadBinary(filePath, _selectedFileBytes!);
         } else {
-          await supabase.storage.from('papers-pdf').upload(filePath, _selectedFile!);
+          await supabase.storage
+              .from('papers-pdf')
+              .upload(filePath, _selectedFile!);
         }
       }
 
