@@ -1,10 +1,12 @@
 <?php
 
-use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminContentController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BrowseController;
 use App\Http\Controllers\ProfessorVerificationController;
 use App\Http\Controllers\UserAuthController;
 use App\Http\Controllers\UserDashboardController;
+use App\Http\Controllers\UserProfileController;
 use App\Services\SupabaseAdminContentService;
 use Illuminate\Support\Facades\Route;
 
@@ -19,9 +21,13 @@ Route::post('/register', [UserAuthController::class, 'register'])->name('user.re
 
 Route::middleware('web-user.session')->group(function () {
     Route::get('/home', [UserDashboardController::class, 'index'])->name('user.dashboard');
+    Route::get('/profile', [UserProfileController::class, 'edit'])->name('user.profile.edit');
+    Route::put('/profile', [UserProfileController::class, 'update'])->name('user.profile.update');
 });
 
 Route::post('/logout', [UserAuthController::class, 'logout'])->name('logout');
+
+Route::get('/browse', [BrowseController::class, 'index'])->name('browse.index');
 
 Route::get('/admin/login', [AuthController::class, 'create'])->name('admin.login');
 Route::post('/admin/login', [AuthController::class, 'store'])->name('admin.login.submit');
@@ -44,7 +50,7 @@ Route::get('/dashboard', function (SupabaseAdminContentService $contentService) 
             0,
             6,
         );
-    } catch (\RuntimeException $exception) {
+    } catch (RuntimeException $exception) {
         $loadError = $exception->getMessage();
     }
 
@@ -82,10 +88,15 @@ Route::prefix('dashboard/posts')
     });
 
 Route::prefix('content')
-    ->middleware('web-user.session')
     ->name('content.')
     ->group(function () {
         Route::get('/{contentType}/{contentId}', [AdminContentController::class, 'show'])->name('show');
+    });
+
+Route::prefix('content')
+    ->middleware('web-user.session')
+    ->name('content.')
+    ->group(function () {
         Route::post('/{contentType}/{contentId}/react', [AdminContentController::class, 'react'])->name('react');
         Route::post('/{contentType}/{contentId}/comment', [AdminContentController::class, 'comment'])->name('comment');
     });

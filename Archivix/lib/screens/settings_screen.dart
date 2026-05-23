@@ -1,8 +1,4 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/app_colors.dart';
@@ -31,16 +27,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _postCommentService = CommentService(contentType: 'post');
   final _professorVerificationService = ProfessorVerificationService();
   final ScrollController _historyScrollController = ScrollController();
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _fullNameController = TextEditingController();
-  final TextEditingController _bioController = TextEditingController();
 
-  bool _isLoadingProfile = true;
-  bool _isSavingProfile = false;
-  bool _isUploadingAvatar = false;
   bool _isLoadingHistory = true;
   bool _isLoadingProfessorVerification = true;
-  String? _profileError;
   String? _historyError;
   String? _professorVerificationError;
   _HistoryFilter _historyFilter = _HistoryFilter.all;
@@ -60,9 +49,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _historyScrollController.dispose();
-    _usernameController.dispose();
-    _fullNameController.dispose();
-    _bioController.dispose();
     super.dispose();
   }
 
@@ -80,16 +66,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (user == null) {
       if (!mounted) return;
       setState(() {
-        _isLoadingProfile = false;
-        _profileError = 'User not authenticated.';
         _profile = null;
       });
       return;
     }
 
     setState(() {
-      _isLoadingProfile = true;
-      _profileError = null;
+      _profile = null;
     });
 
     try {
@@ -119,16 +102,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       setState(() {
         _profile = profile;
-        _usernameController.text = (profile['username'] as String?) ?? '';
-        _fullNameController.text = (profile['full_name'] as String?) ?? '';
-        _bioController.text = (profile['bio'] as String?) ?? '';
-        _isLoadingProfile = false;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _profileError = _friendlyProfileError(error);
-        _isLoadingProfile = false;
+        _profile = null;
       });
     }
   }
@@ -278,224 +256,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<bool> _saveProfile({
-    String? avatarPathOverride,
-    bool clearAvatar = false,
-    bool showSuccess = true,
-  }) async {
-    final user = supabase.auth.currentUser;
-    if (user == null) {
-      _showMessage(
-        'Please sign in again to update your profile.',
-        AppColors.errorDark,
-      );
-      return false;
-    }
-
-    final username = _usernameController.text.trim();
-    final fullName = _fullNameController.text.trim();
-    final bio = _bioController.text.trim();
-
-    if (username.isNotEmpty &&
-        !RegExp(r'^[A-Za-z0-9_]{3,24}$').hasMatch(username)) {
-      _showMessage(
-        'Username must be 3-24 characters and use only letters, numbers, or underscores.',
-        AppColors.errorDark,
-      );
-      return false;
-    }
-
-    if (fullName.length > 80) {
-      _showMessage(
-        'Real name must be 80 characters or fewer.',
-        AppColors.errorDark,
-      );
-      return false;
-    }
-
-    if (bio.length > 240) {
-      _showMessage('Bio must be 240 characters or fewer.', AppColors.errorDark);
-      return false;
-    }
-
-    final nextAvatarPath = clearAvatar
-        ? null
-        : avatarPathOverride ?? (_profile?['avatar_path'] as String?);
-
-    setState(() {
-      _isSavingProfile = true;
-      _profileError = null;
-    });
-
-    try {
-      final payload = <String, dynamic>{
-        'id': user.id,
-        'username': username.isEmpty ? null : username,
-        'full_name': fullName.isEmpty ? null : fullName,
-        'bio': bio.isEmpty ? null : bio,
-        'avatar_path': nextAvatarPath,
-      };
-
-      final savedProfile = await supabase
-          .from('profiles')
-          .upsert(payload)
-          .select(
-            'id, username, full_name, bio, avatar_path, is_verified_professor, professor_institution, professor_position, professor_department, professor_verified_at, created_at, updated_at',
-          )
-          .single();
-
-      await supabase.auth.updateUser(
-        UserAttributes(
-          data: {
-            'username': username,
-            'full_name': fullName,
-            'bio': bio,
-            'avatar_path': nextAvatarPath ?? '',
-          },
-        ),
-      );
-
-      if (!mounted) return false;
-      setState(() {
-        _profile = Map<String, dynamic>.from(savedProfile);
-      });
-
-      if (showSuccess) {
-        _showMessage('Profile updated successfully.', AppColors.success);
-      }
-      return true;
-    } on PostgrestException catch (error) {
-      if (mounted) {
-        setState(() {
-          _profileError = _friendlyProfileError(error);
-        });
-        _showMessage(_friendlyProfileError(error), AppColors.errorDark);
-      }
-      return false;
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _profileError = _friendlyProfileError(error);
-        });
-        _showMessage(_friendlyProfileError(error), AppColors.errorDark);
-      }
-      return false;
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSavingProfile = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _pickAvatar() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) {
-      _showMessage(
-        'Please sign in again to update your profile photo.',
-        AppColors.errorDark,
-      );
-      return;
-    }
-
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-      );
-
-      if (result == null || result.files.isEmpty) {
-        return;
-      }
-
-      final file = result.files.single;
-      if (file.path == null) {
-        _showMessage(
-          'Could not access the selected image file.',
-          AppColors.errorDark,
-        );
-        return;
-      }
-
-      final extension = p.extension(file.name).toLowerCase();
-      final contentType = _contentTypeForExtension(extension);
-      if (contentType == null) {
-        _showMessage(
-          'Please select a JPG, PNG, or WEBP image.',
-          AppColors.errorDark,
-        );
-        return;
-      }
-
-      final storagePath = '${user.id}/avatar$extension';
-
-      setState(() {
-        _isUploadingAvatar = true;
-        _profileError = null;
-      });
-
-      await supabase.storage
-          .from('profile-avatars')
-          .upload(
-            storagePath,
-            File(file.path!),
-            fileOptions: FileOptions(upsert: true, contentType: contentType),
-          );
-
-      final saved = await _saveProfile(
-        avatarPathOverride: storagePath,
-        showSuccess: false,
-      );
-
-      if (mounted && saved) {
-        _showMessage('Profile photo updated.', AppColors.success);
-      }
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _profileError = _friendlyProfileError(error);
-      });
-      _showMessage(_friendlyProfileError(error), AppColors.errorDark);
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUploadingAvatar = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _removeAvatar() async {
-    final currentAvatarPath = (_profile?['avatar_path'] as String?)?.trim();
-    if (currentAvatarPath == null || currentAvatarPath.isEmpty) {
-      return;
-    }
-
-    setState(() {
-      _isUploadingAvatar = true;
-      _profileError = null;
-    });
-
-    try {
-      await supabase.storage.from('profile-avatars').remove([
-        currentAvatarPath,
-      ]);
-    } catch (_) {
-      // If the object is already gone, we still want to clear the profile field.
-    }
-
-    final saved = await _saveProfile(clearAvatar: true, showSuccess: false);
-
-    if (!mounted) return;
-    setState(() {
-      _isUploadingAvatar = false;
-    });
-    if (saved) {
-      _showMessage('Profile photo removed.', AppColors.success);
-    }
-  }
-
   Future<void> _openEditProfile() async {
     final updated = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -623,11 +383,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       children: [
                         _buildRetroOverview(user: user, isCompact: isCompact),
-                        const SizedBox(height: 18),
-                        _buildProfileCustomizationPanel(
-                          user: user,
-                          isCompact: isCompact,
-                        ),
                         const SizedBox(height: 18),
                         _buildProfessorVerificationCenter(user),
                         const SizedBox(height: 18),
@@ -946,267 +701,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             child: _buildHistoryPanel(visibleHistory),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileCustomizationPanel({
-    required User? user,
-    required bool isCompact,
-  }) {
-    return _buildWindowPanel(
-      title: 'PROFILE STUDIO',
-      subtitle: 'Customize your name, handle, photo, and public description',
-      icon: Icons.badge_outlined,
-      accentColor: AppColors.slatePrimary,
-      child: _isLoadingProfile
-          ? Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              decoration: _innerPanelDecoration(
-                backgroundColor: Colors.white,
-                borderColor: const Color(0xFFB5BBC6),
-              ),
-              child: const Row(
-                children: [
-                  SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 10),
-                  Text(
-                    'Loading your profile...',
-                    style: TextStyle(fontSize: 13, color: AppColors.textMuted),
-                  ),
-                ],
-              ),
-            )
-          : _profileError != null
-          ? Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: _innerPanelDecoration(
-                backgroundColor: AppColors.errorSurface,
-                borderColor: AppColors.errorBorder,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Profile setup is unavailable',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.errorDark,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _profileError!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.errorDark,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: _loadProfile,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          : isCompact
-          ? Column(
-              children: [
-                _buildProfileCard(user),
-                const SizedBox(height: 12),
-                _buildProfileEditor(user),
-              ],
-            )
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(width: 300, child: _buildProfileCard(user)),
-                const SizedBox(width: 12),
-                Expanded(child: _buildProfileEditor(user)),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildProfileCard(User? user) {
-    final username = (_profile?['username'] as String?)?.trim();
-    final fullName = (_profile?['full_name'] as String?)?.trim();
-    final bio = (_profile?['bio'] as String?)?.trim();
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _innerPanelDecoration(
-        backgroundColor: const Color(0xFFE1E6EE),
-        borderColor: const Color(0xFFAEB7C4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Align(
-            alignment: Alignment.topCenter,
-            child: _buildProfileAvatar(size: 124),
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              _profileDisplayName(user),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Center(
-            child: Text(
-              username != null && username.isNotEmpty
-                  ? '@$username'
-                  : 'No username yet',
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-            ),
-          ),
-          const SizedBox(height: 14),
-          _buildFactRow(
-            'Real Name',
-            fullName?.isNotEmpty == true ? fullName! : 'Not set',
-          ),
-          const SizedBox(height: 8),
-          _buildFactRow('Email', user?.email ?? 'No email on record'),
-          const SizedBox(height: 8),
-          _buildFactRow(
-            'Description',
-            bio?.isNotEmpty == true
-                ? bio!
-                : 'Introduce yourself to the research community.',
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _buildCommandButton(
-                icon: Icons.photo_camera_back_outlined,
-                label: _isUploadingAvatar ? 'Uploading...' : 'Change Photo',
-                onPressed: _isUploadingAvatar ? null : _pickAvatar,
-                color: AppColors.slatePrimary,
-                filled: true,
-              ),
-              if (_avatarUrl != null)
-                _buildCommandButton(
-                  icon: Icons.delete_outline,
-                  label: 'Remove Photo',
-                  onPressed: _isUploadingAvatar ? null : _removeAvatar,
-                  color: AppColors.errorDark,
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileEditor(User? user) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _innerPanelDecoration(
-        backgroundColor: Colors.white,
-        borderColor: const Color(0xFFB5BBC6),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'EDIT PUBLIC PROFILE',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              color: AppColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildDialogFieldLabel('Username'),
-          TextField(
-            controller: _usernameController,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              hintText: 'your_handle',
-              prefixText: '@',
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            '3-24 characters. Letters, numbers, and underscores only.',
-            style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
-          ),
-          const SizedBox(height: 14),
-          _buildDialogFieldLabel('Real Name'),
-          TextField(
-            controller: _fullNameController,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              hintText: 'Your actual name or research alias',
-            ),
-          ),
-          const SizedBox(height: 14),
-          _buildDialogFieldLabel('Description'),
-          TextField(
-            controller: _bioController,
-            minLines: 3,
-            maxLines: 5,
-            maxLength: 240,
-            decoration: const InputDecoration(
-              hintText:
-                  'Share your field, interests, or what you research. This appears on your public profile.',
-              alignLabelWithHint: true,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'This is the public description other users will see when they open your profile from search.',
-            style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _buildCommandButton(
-                icon: Icons.save_outlined,
-                label: _isSavingProfile ? 'Saving...' : 'Save Profile',
-                onPressed: _isSavingProfile || _isUploadingAvatar
-                    ? null
-                    : () => _saveProfile(),
-                color: AppColors.slatePrimary,
-                filled: true,
-              ),
-              _buildCommandButton(
-                icon: Icons.refresh,
-                label: 'Reload',
-                onPressed: _isSavingProfile || _isUploadingAvatar
-                    ? null
-                    : _loadProfile,
-                color: AppColors.textSecondary,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildFactRow('Display Name', _profileDisplayName(user)),
-          const SizedBox(height: 8),
-          _buildFactRow('Comment Label', _profileCommentLabel(user)),
         ],
       ),
     );
@@ -1788,20 +1282,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildDialogFieldLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textMuted,
-        ),
       ),
     );
   }
@@ -2446,20 +1926,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             )
           else
             _buildAvatarFallback(initials, size),
-          if (_isUploadingAvatar)
-            Container(
-              color: Colors.black.withValues(alpha: 0.28),
-              child: const Center(
-                child: SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -2493,25 +1959,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return user?.email ?? 'Unknown User';
   }
 
-  String _profileCommentLabel(User? user) {
-    final fullName = (_profile?['full_name'] as String?)?.trim();
-    if (fullName != null && fullName.isNotEmpty) {
-      return fullName;
-    }
-
-    final username = (_profile?['username'] as String?)?.trim();
-    if (username != null && username.isNotEmpty) {
-      return username;
-    }
-
-    final email = user?.email?.trim() ?? '';
-    if (email.isNotEmpty) {
-      return email.split('@').first;
-    }
-
-    return 'Researcher';
-  }
-
   String? get _avatarUrl {
     final avatarPath = (_profile?['avatar_path'] as String?)?.trim();
     if (avatarPath == null || avatarPath.isEmpty) {
@@ -2523,40 +1970,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         .from('profile-avatars')
         .getPublicUrl(avatarPath);
     return '$publicUrl?v=${Uri.encodeComponent(updatedAt)}';
-  }
-
-  String? _contentTypeForExtension(String extension) {
-    switch (extension) {
-      case '.jpg':
-      case '.jpeg':
-        return 'image/jpeg';
-      case '.png':
-        return 'image/png';
-      case '.webp':
-        return 'image/webp';
-      default:
-        return null;
-    }
-  }
-
-  String _friendlyProfileError(Object error) {
-    final message = error.toString();
-    if (message.contains('duplicate key') ||
-        message.contains('idx_profiles_username_unique')) {
-      return 'That username is already taken. Try another one.';
-    }
-    if (message.contains('profile-avatars')) {
-      return 'Profile photo storage is not ready yet. Run profiles_setup.sql in Supabase first.';
-    }
-    if (message.contains('is_verified_professor') ||
-        message.contains('professor_institution') ||
-        message.contains('schema cache')) {
-      return 'Professor verification profile fields are not ready yet. Run professor_verification_setup.sql in Supabase first.';
-    }
-    if (message.contains('profiles')) {
-      return 'Profile customization is not ready yet. Run profiles_setup.sql in Supabase first.';
-    }
-    return 'Unable to update profile right now.';
   }
 
   String _friendlyProfessorVerificationError(Object error) {

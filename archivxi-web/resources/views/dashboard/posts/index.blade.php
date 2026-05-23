@@ -393,6 +393,7 @@
             <div class="hero-actions">
                 <a href="{{ route('dashboard') }}" class="btn btn-secondary">Kembali ke Dashboard</a>
                 <a href="{{ route('dashboard.posts.index', ['filter' => 'all']) }}" class="btn btn-primary">Muat Ulang Daftar</a>
+                <a href="{{ route('dashboard.professor-verification.index') }}" class="btn btn-secondary">Professor Verification Queue</a>
             </div>
         </div>
 

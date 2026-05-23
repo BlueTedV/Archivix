@@ -133,6 +133,33 @@
         color: #1d72da;
     }
 
+    .engagement-btn:disabled {
+        cursor: wait;
+        opacity: 0.72;
+    }
+
+    .engagement-feedback {
+        display: none;
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 4px;
+        border: 1px solid #c9d8e8;
+        background: #f8fbff;
+        color: #4d6077;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .engagement-feedback.visible {
+        display: block;
+    }
+
+    .engagement-feedback.error {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #b91c1c;
+    }
+
     .comment-form {
         display: grid;
         gap: 10px;
@@ -281,8 +308,12 @@
 @php
     $isPaper = ($item['type'] ?? '') === 'paper';
     $canManage = session()->has('admin_user');
+    $isLoggedInUser = session()->has('web_user');
+    $canInteract = $canManage || $isLoggedInUser;
     $routeBase = $canManage ? 'dashboard.posts' : 'content';
-    $backUrl = $canManage ? route('dashboard.posts.index') : route('user.dashboard');
+    $backUrl = $canManage
+        ? route('dashboard.posts.index')
+        : ($isLoggedInUser ? route('user.dashboard') : route('browse.index'));
     $mainBody = $isPaper ? ($item['abstract'] ?? '') : ($item['content'] ?? '');
     $status = $isPaper ? ($item['status'] ?? 'draft') : 'live';
     $formatDate = function (?string $value): string {
@@ -333,30 +364,48 @@
 
     <section class="detail-card" style="margin-bottom: 18px;">
         <h2>Engagement</h2>
-        <div class="engagement-bar">
-            <form class="engagement-form" action="{{ route($routeBase.'.react', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" method="POST">
-                @csrf
-                <input type="hidden" name="reaction_value" value="1">
-                <button type="submit" class="engagement-btn {{ ($item['user_reaction'] ?? null) === 1 ? 'active' : '' }}">
+        <div class="engagement-bar" data-engagement-panel>
+            @if ($canInteract)
+                <form class="engagement-form" action="{{ route($routeBase.'.react', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" method="POST" data-reaction-form>
+                    @csrf
+                    <input type="hidden" name="reaction_value" value="1">
+                    <button type="submit" class="engagement-btn {{ ($item['user_reaction'] ?? null) === 1 ? 'active' : '' }}" data-reaction-button="1">
+                        <span aria-hidden="true">+</span>
+                        <span data-reaction-count="likes">{{ $item['likes_count'] ?? 0 }}</span>
+                        <span>likes</span>
+                    </button>
+                </form>
+
+                <form class="engagement-form" action="{{ route($routeBase.'.react', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" method="POST" data-reaction-form>
+                    @csrf
+                    <input type="hidden" name="reaction_value" value="-1">
+                    <button type="submit" class="engagement-btn {{ ($item['user_reaction'] ?? null) === -1 ? 'active' : '' }}" data-reaction-button="-1">
+                        <span aria-hidden="true">-</span>
+                        <span data-reaction-count="dislikes">{{ $item['dislikes_count'] ?? 0 }}</span>
+                        <span>dislikes</span>
+                    </button>
+                </form>
+            @else
+                <div class="engagement-btn" aria-label="Like count">
                     <span aria-hidden="true">+</span>
                     <span>{{ $item['likes_count'] ?? 0 }} likes</span>
-                </button>
-            </form>
+                </div>
 
-            <form class="engagement-form" action="{{ route($routeBase.'.react', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" method="POST">
-                @csrf
-                <input type="hidden" name="reaction_value" value="-1">
-                <button type="submit" class="engagement-btn {{ ($item['user_reaction'] ?? null) === -1 ? 'active' : '' }}">
+                <div class="engagement-btn" aria-label="Dislike count">
                     <span aria-hidden="true">-</span>
                     <span>{{ $item['dislikes_count'] ?? 0 }} dislikes</span>
-                </button>
-            </form>
+                </div>
+            @endif
 
             <div class="engagement-btn" aria-label="Comment count">
                 <span aria-hidden="true">#</span>
-                <span>{{ $item['comments_count'] ?? count($item['comments'] ?? []) }} comments</span>
+                <span data-reaction-count="comments">{{ $item['comments_count'] ?? count($item['comments'] ?? []) }}</span>
+                <span>comments</span>
             </div>
         </div>
+        @if ($canInteract)
+            <div class="engagement-feedback" data-engagement-feedback aria-live="polite"></div>
+        @endif
     </section>
 
     <section class="detail-grid">
@@ -405,10 +454,17 @@
                 <div class="asset-item" style="margin-bottom: 14px;">
                     <strong>{{ $item['pdf_file_name'] !== '' ? $item['pdf_file_name'] : 'Document PDF' }}</strong>
                     <span>{{ $formatBytes($item['pdf_file_size'] ?? null) }}</span>
-                    <div class="actions" style="margin-top: 12px;">
-                        <a href="{{ $item['pdf_view_url'] }}" target="_blank" rel="noopener" class="btn btn-secondary">Open PDF</a>
-                        <a href="{{ $item['pdf_download_url'] }}" class="btn btn-primary">Download PDF</a>
-                    </div>
+                    @if ($canInteract)
+                        <div class="actions" style="margin-top: 12px;">
+                            <a href="{{ $item['pdf_view_url'] }}" target="_blank" rel="noopener" class="btn btn-secondary">Open PDF</a>
+                            <a href="{{ $item['pdf_download_url'] }}" class="btn btn-primary">Download PDF</a>
+                        </div>
+                    @else
+                        <div class="actions" style="margin-top: 12px;">
+                            <a href="{{ $item['pdf_view_url'] }}" target="_blank" rel="noopener" class="btn btn-secondary">Open PDF</a>
+                        </div>
+                        <span style="display:block; margin-top: 10px;">Sign in to download this PDF.</span>
+                    @endif
                 </div>
             @else
                 <div class="empty-state">No PDF file is attached to this document.</div>
@@ -423,14 +479,18 @@
                         <div class="asset-item">
                             <strong>{{ $attachment['file_name'] ?? 'Attachment' }}</strong>
                             <span>{{ $attachment['mime_type'] ?? ($attachment['file_type'] ?? 'File') }} - {{ $formatBytes($attachment['file_size'] ?? null) }}</span>
-                            <div class="actions" style="margin-top: 12px;">
-                                @if (($attachment['view_url'] ?? '') !== '')
-                                    <a href="{{ $attachment['view_url'] }}" target="_blank" rel="noopener" class="btn btn-secondary">Open File</a>
-                                @endif
-                                @if (($attachment['download_url'] ?? '') !== '')
-                                    <a href="{{ $attachment['download_url'] }}" class="btn btn-primary">Download File</a>
-                                @endif
-                            </div>
+                            @if ($canInteract)
+                                <div class="actions" style="margin-top: 12px;">
+                                    @if (($attachment['view_url'] ?? '') !== '')
+                                        <a href="{{ $attachment['view_url'] }}" target="_blank" rel="noopener" class="btn btn-secondary">Open File</a>
+                                    @endif
+                                    @if (($attachment['download_url'] ?? '') !== '')
+                                        <a href="{{ $attachment['download_url'] }}" class="btn btn-primary">Download File</a>
+                                    @endif
+                                </div>
+                            @else
+                                <span style="display:block; margin-top: 10px;">Sign in to open or download this file.</span>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -441,14 +501,20 @@
     <section class="detail-card" style="margin-top: 18px;">
         <h2>Comments</h2>
 
-        <form class="comment-form" action="{{ route($routeBase.'.comment', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" method="POST">
-            @csrf
-            <textarea name="body" placeholder="Write a comment..." required>{{ old('body') }}</textarea>
-            <button type="submit" class="btn btn-primary">Post Comment</button>
-        </form>
+        @if ($canInteract)
+            <form class="comment-form" action="{{ route($routeBase.'.comment', ['contentType' => $item['type'], 'contentId' => $item['id']]) }}" method="POST">
+                @csrf
+                <textarea name="body" placeholder="Write a comment..." required>{{ old('body') }}</textarea>
+                <button type="submit" class="btn btn-primary">Post Comment</button>
+            </form>
+        @else
+            <div class="empty-state" style="margin-bottom: 14px;">
+                Sign in to comment, react, download files, or view version history.
+            </div>
+        @endif
 
         @if (count($item['comments'] ?? []) === 0)
-            <div class="empty-state">No comments yet. Be the first to comment.</div>
+            <div class="empty-state">No comments yet.</div>
         @else
             <div class="asset-list">
                 @foreach ($item['comments'] as $comment)
@@ -462,4 +528,96 @@
         @endif
     </section>
 </div>
+
+@if ($canInteract)
+<script>
+    (() => {
+        const panel = document.querySelector('[data-engagement-panel]');
+        if (!panel) {
+            return;
+        }
+
+        const feedback = document.querySelector('[data-engagement-feedback]');
+        const forms = Array.from(panel.querySelectorAll('[data-reaction-form]'));
+        const buttons = Array.from(panel.querySelectorAll('[data-reaction-button]'));
+        const likeCount = panel.querySelector('[data-reaction-count="likes"]');
+        const dislikeCount = panel.querySelector('[data-reaction-count="dislikes"]');
+
+        const setBusy = (isBusy) => {
+            buttons.forEach((button) => {
+                button.disabled = isBusy;
+            });
+        };
+
+        const showFeedback = (message, isError = false) => {
+            if (!feedback) {
+                return;
+            }
+
+            feedback.textContent = message;
+            feedback.classList.add('visible');
+            feedback.classList.toggle('error', isError);
+
+            window.clearTimeout(showFeedback.timeoutId);
+            showFeedback.timeoutId = window.setTimeout(() => {
+                feedback.classList.remove('visible', 'error');
+                feedback.textContent = '';
+            }, isError ? 4200 : 1800);
+        };
+
+        forms.forEach((form) => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const formData = new FormData(form);
+
+                setBusy(true);
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData,
+                        credentials: 'same-origin',
+                    });
+
+                    const payload = await response.json().catch(() => ({}));
+
+                    if (!response.ok) {
+                        if (response.status === 401 && payload.login_url) {
+                            window.location.href = payload.login_url;
+                            return;
+                        }
+
+                        throw new Error(payload.message || 'Could not update this reaction.');
+                    }
+
+                    if (likeCount) {
+                        likeCount.textContent = String(payload.engagement?.likes_count ?? 0);
+                    }
+
+                    if (dislikeCount) {
+                        dislikeCount.textContent = String(payload.engagement?.dislikes_count ?? 0);
+                    }
+
+                    buttons.forEach((button) => {
+                        const value = Number(button.dataset.reactionButton);
+                        const isActive = payload.engagement?.user_reaction === value;
+                        button.classList.toggle('active', isActive);
+                    });
+
+                    showFeedback(payload.message || 'Reaction updated.');
+                } catch (error) {
+                    showFeedback(error.message || 'Could not update this reaction.', true);
+                } finally {
+                    setBusy(false);
+                }
+            });
+        });
+    })();
+</script>
+@endif
 @endsection

@@ -557,6 +557,7 @@
 
     <div class="navbar-right">
         <a href="/" class="nav-link">Home</a>
+        <a href="{{ route('browse.index') }}" class="nav-link">Browse</a>
         <a href="/download" class="nav-link">Download</a>
 
         @if (session()->has('admin_user'))
@@ -568,6 +569,7 @@
             </form>
         @elseif (session()->has('web_user'))
             <a href="{{ route('user.dashboard') }}" class="nav-link">My Dashboard</a>
+            <a href="{{ route('user.profile.edit') }}" class="nav-link">Profile</a>
             <form action="{{ route('logout') }}" method="POST" style="margin: 0;">
                 @csrf
                 <button type="submit" class="btn btn-primary">Logout</button>

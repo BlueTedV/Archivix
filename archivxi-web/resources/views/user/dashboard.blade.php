@@ -418,6 +418,7 @@
 
             <div class="hero-actions">
                 <a href="/download" class="btn btn-primary">Continue in Mobile App</a>
+                <a href="{{ route('user.profile.edit') }}" class="btn btn-secondary">Edit Profile</a>
                 <a href="/" class="btn btn-secondary">Back to Home</a>
             </div>
         </div>
@@ -609,6 +610,7 @@
             </div>
 
             <div class="panel-actions" style="margin-top: 18px;">
+                <a href="{{ route('user.profile.edit') }}" class="btn btn-secondary">Edit Profile</a>
                 <a href="/download" class="btn btn-secondary">Open Mobile Flow</a>
                 <form action="{{ route('logout') }}" method="POST" style="margin: 0;">
                     @csrf

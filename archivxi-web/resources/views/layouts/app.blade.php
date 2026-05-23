@@ -306,6 +306,7 @@
     </a>
 
     <div class="navbar-right">
+        <a href="{{ route('browse.index') }}" class="nav-link">Browse</a>
         <a href="/download" class="nav-link">Download</a>
 
         @if(session('is_admin'))

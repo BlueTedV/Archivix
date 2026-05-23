@@ -216,16 +216,22 @@ class SupabaseUserAuthService
         string $fallbackEmail = '',
         string $fallbackName = '',
     ): array {
+        $profile = $this->fetchProfile((string) ($user['id'] ?? ''));
+        $profileFullName = trim((string) ($profile['full_name'] ?? ''));
+        $profileUsername = trim((string) ($profile['username'] ?? ''));
+
         return [
             'id' => (string) ($user['id'] ?? ''),
             'email' => (string) ($user['email'] ?? $fallbackEmail),
             'name' => (string) (
-                data_get($user, 'user_metadata.full_name')
+                $profileFullName
+                ?: data_get($user, 'user_metadata.full_name')
                 ?? data_get($user, 'user_metadata.name')
                 ?? $fallbackName
                 ?? $user['email']
                 ?? 'User'
             ),
+            'username' => $profileUsername !== '' ? $profileUsername : null,
             'role' => (string) (data_get($user, 'app_metadata.role') ?? 'user'),
             'email_verified_at' => (string) (
                 $user['email_confirmed_at']
@@ -235,5 +241,48 @@ class SupabaseUserAuthService
             'last_sign_in_at' => (string) ($user['last_sign_in_at'] ?? ''),
             'created_at' => (string) ($user['created_at'] ?? ''),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function fetchProfile(string $userId): ?array
+    {
+        if ($userId === '') {
+            return null;
+        }
+
+        $supabaseUrl = rtrim((string) config('services.supabase.url'), '/');
+        $serviceRoleKey = (string) config('services.supabase.service_role_key');
+
+        if ($supabaseUrl === '' || $serviceRoleKey === '') {
+            return null;
+        }
+
+        try {
+            $response = Http::baseUrl($supabaseUrl)
+                ->acceptJson()
+                ->withHeaders([
+                    'apikey' => $serviceRoleKey,
+                    'Authorization' => 'Bearer '.$serviceRoleKey,
+                ])
+                ->get('/rest/v1/profiles', [
+                    'id' => 'eq.'.$userId,
+                    'select' => 'username,full_name',
+                    'limit' => '1',
+                ]);
+        } catch (\Throwable $exception) {
+            return null;
+        }
+
+        if ($response->failed()) {
+            return null;
+        }
+
+        $rows = $response->json();
+
+        return is_array($rows) && isset($rows[0]) && is_array($rows[0])
+            ? $rows[0]
+            : null;
     }
 }

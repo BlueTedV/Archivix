@@ -71,6 +71,63 @@ class SupabaseAdminContentService
     }
 
     /**
+     * @return array{
+     *   items: array<int, array<string, mixed>>,
+     *   stats: array<string, int>
+     * }
+     */
+    public function browseContent(
+        string $filter = 'all',
+        ?string $categoryId = null,
+        ?string $query = null,
+        ?string $userId = null,
+    ): array {
+        $normalizedCategoryId = trim((string) $categoryId);
+        if ($normalizedCategoryId === '' || $normalizedCategoryId === 'all') {
+            $normalizedCategoryId = null;
+        }
+
+        $normalizedQuery = trim((string) $query);
+        $posts = in_array($filter, ['all', 'posts'], true)
+            ? $this->fetchBrowsePosts($normalizedCategoryId, $normalizedQuery)
+            : [];
+        $papers = in_array($filter, ['all', 'papers'], true)
+            ? $this->fetchBrowsePapers($normalizedCategoryId, $normalizedQuery)
+            : [];
+
+        $this->attachEngagement($posts, 'post', $userId);
+        $this->attachEngagement($papers, 'paper', $userId);
+
+        /** @var array<int, array<string, mixed>> $items */
+        $items = collect([...$papers, ...$posts])
+            ->sort(function (array $a, array $b) use ($normalizedQuery): int {
+                $scoreCompare = $this->browseSearchScore($a, $normalizedQuery)
+                    <=> $this->browseSearchScore($b, $normalizedQuery);
+
+                if ($scoreCompare !== 0) {
+                    return $scoreCompare;
+                }
+
+                return strcmp(
+                    (string) ($b['published_at'] ?? $b['created_at'] ?? ''),
+                    (string) ($a['published_at'] ?? $a['created_at'] ?? ''),
+                );
+            })
+            ->take(120)
+            ->values()
+            ->all();
+
+        return [
+            'items' => $items,
+            'stats' => [
+                'total' => count($items),
+                'posts' => count($posts),
+                'papers' => count($papers),
+            ],
+        ];
+    }
+
+    /**
      * @return array<int, array{id: string, name: string}>
      */
     public function listCategories(): array
@@ -246,14 +303,13 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function updatePost(
         string $id,
         array $payload,
         string $editorUserId,
-    ): bool
-    {
+    ): bool {
         $currentPost = $this->getEditableContent('post', $id);
         $currentAttachments = $currentPost['attachments'] ?? [];
         $normalizedCategoryId = ($payload['category_id'] ?? '') !== ''
@@ -338,14 +394,13 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function updatePaper(
         string $id,
         array $payload,
         string $editorUserId,
-    ): bool
-    {
+    ): bool {
         $currentPaper = $this->getEditableContent('paper', $id);
         $normalizedCategoryId = ($payload['category_id'] ?? '') !== ''
             ? (string) $payload['category_id']
@@ -494,6 +549,63 @@ class SupabaseAdminContentService
     /**
      * @return array<int, array<string, mixed>>
      */
+    private function fetchBrowsePosts(?string $categoryId, string $query): array
+    {
+        $params = [
+            'select' => 'id,title,content,created_at,views_count,user_id,category_id,categories(name)',
+            'order' => 'created_at.desc',
+            'limit' => '80',
+        ];
+
+        if ($categoryId !== null) {
+            $params['category_id'] = 'eq.'.$categoryId;
+        }
+
+        if ($query !== '') {
+            $term = $this->postgrestSearchTerm($query);
+            $params['or'] = '(title.ilike.'.$term.',content.ilike.'.$term.')';
+        }
+
+        $rows = $this->getRows('posts', $params);
+
+        return collect($rows)
+            ->map(fn (array $row): array => $this->mapListPost($row))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function fetchBrowsePapers(?string $categoryId, string $query): array
+    {
+        $params = [
+            'status' => 'eq.published',
+            'select' => 'id,title,abstract,created_at,submitted_at,reviewed_at,published_at,views_count,user_id,category_id,status,rejection_reason,pdf_file_name,categories(name),paper_authors(name)',
+            'order' => 'published_at.desc,created_at.desc',
+            'limit' => '80',
+        ];
+
+        if ($categoryId !== null) {
+            $params['category_id'] = 'eq.'.$categoryId;
+        }
+
+        if ($query !== '') {
+            $term = $this->postgrestSearchTerm($query);
+            $params['or'] = '(title.ilike.'.$term.',abstract.ilike.'.$term.')';
+        }
+
+        $rows = $this->getRows('papers', $params);
+
+        return collect($rows)
+            ->map(fn (array $row): array => $this->mapListPaper($row))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function listPostAttachments(string $postId): array
     {
         $rows = $this->getRows('post_attachments', [
@@ -563,7 +675,7 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $items
+     * @param  array<int, array<string, mixed>>  $items
      */
     private function attachEngagement(array &$items, string $type, ?string $userId = null): void
     {
@@ -645,7 +757,7 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, string> $params
+     * @param  array<string, string>  $params
      * @return array<int, array<string, mixed>>
      */
     private function getRows(string $table, array $params): array
@@ -669,7 +781,7 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, string> $params
+     * @param  array<string, string>  $params
      * @return array<string, mixed>
      */
     private function getSingleRow(string $table, array $params): array
@@ -684,7 +796,7 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     private function patchRow(string $table, string $id, array $payload): void
     {
@@ -699,7 +811,7 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     private function insertRow(string $table, array $payload): void
     {
@@ -714,7 +826,7 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, string> $filters
+     * @param  array<string, string>  $filters
      */
     private function deleteRows(string $table, array $filters): void
     {
@@ -728,7 +840,7 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, mixed> $row
+     * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
     private function mapListPost(array $row): array
@@ -749,12 +861,18 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, mixed> $row
+     * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
     private function mapListPaper(array $row): array
     {
         $status = (string) ($row['status'] ?? 'draft');
+        $authors = collect($row['paper_authors'] ?? [])
+            ->filter(fn ($author): bool => is_array($author))
+            ->map(fn (array $author): string => trim((string) ($author['name'] ?? '')))
+            ->filter()
+            ->values()
+            ->all();
 
         return [
             'id' => (string) ($row['id'] ?? ''),
@@ -779,11 +897,65 @@ class SupabaseAdminContentService
             'status' => $status,
             'rejection_reason' => (string) ($row['rejection_reason'] ?? ''),
             'pdf_file_name' => (string) ($row['pdf_file_name'] ?? ''),
+            'authors' => $authors,
+            'authors_label' => $this->authorsLabel($authors),
         ];
     }
 
     /**
-     * @param array<string, mixed> $row
+     * @param  array<int, string>  $authors
+     */
+    private function authorsLabel(array $authors): string
+    {
+        if ($authors === []) {
+            return 'Unknown author';
+        }
+
+        if (count($authors) === 1) {
+            return $authors[0];
+        }
+
+        if (count($authors) === 2) {
+            return $authors[0].' and '.$authors[1];
+        }
+
+        return $authors[0].' et al.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function browseSearchScore(array $item, string $query): int
+    {
+        if ($query === '') {
+            return ($item['type'] ?? '') === 'paper' ? 0 : 1;
+        }
+
+        $normalizedQuery = Str::lower($query);
+        $title = Str::lower((string) ($item['title'] ?? ''));
+        $secondary = Str::lower((string) ($item['excerpt'] ?? ''));
+
+        if ($title === $normalizedQuery) {
+            return 0;
+        }
+
+        if (Str::startsWith($title, $normalizedQuery)) {
+            return 1;
+        }
+
+        if (Str::contains($title, $normalizedQuery)) {
+            return 2;
+        }
+
+        if (Str::contains($secondary, $normalizedQuery)) {
+            return 3;
+        }
+
+        return 4;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
     private function mapEditablePost(array $row, array $attachments): array
@@ -806,7 +978,7 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, mixed> $row
+     * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
     private function mapEditablePaper(array $row): array
@@ -853,8 +1025,8 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, mixed> $post
-     * @param array<int, array<string, mixed>> $attachments
+     * @param  array<string, mixed>  $post
+     * @param  array<int, array<string, mixed>>  $attachments
      */
     private function archivePostVersion(
         array $post,
@@ -881,7 +1053,7 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, mixed> $paper
+     * @param  array<string, mixed>  $paper
      */
     private function archivePaperVersion(
         array $paper,
@@ -915,7 +1087,7 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, mixed> $paper
+     * @param  array<string, mixed>  $paper
      */
     private function freezePaperPdf(array $paper, int $versionNumber): ?string
     {
@@ -1054,19 +1226,29 @@ class SupabaseAdminContentService
     }
 
     /**
-     * @param array<string, string> $params
+     * @param  array<string, string>  $params
      */
     private function query(array $params): string
     {
         return http_build_query($params, '', '&', PHP_QUERY_RFC3986);
     }
 
+    private function postgrestSearchTerm(string $value): string
+    {
+        $escaped = str_replace(
+            ['\\', '*', ',', '(', ')'],
+            ['\\\\', '\\*', '\\,', '\\(', '\\)'],
+            trim($value),
+        );
+
+        return '*'.$escaped.'*';
+    }
+
     private function publicStorageUrl(
         string $bucket,
         string $path,
         ?string $downloadName = null,
-    ): string
-    {
+    ): string {
         if ($path === '') {
             return '';
         }

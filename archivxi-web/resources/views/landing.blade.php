@@ -359,6 +359,7 @@
                 @else
                     <a href="{{ route('login') }}" class="btn btn-primary">Masuk / Daftar</a>
                 @endif
+                <a href="{{ route('browse.index') }}" class="btn btn-secondary">Browse Archive</a>
                 <a href="/download" class="btn btn-secondary">Lihat Download</a>
             </div>
 

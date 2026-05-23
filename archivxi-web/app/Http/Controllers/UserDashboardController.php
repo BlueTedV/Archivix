@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Services\SupabaseUserDashboardService;
-use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -13,14 +13,14 @@ class UserDashboardController extends Controller
     public function index(
         Request $request,
         SupabaseUserDashboardService $dashboardService,
-    ): View
-    {
+    ): View {
         /** @var array<string, string|null> $sessionUser */
         $sessionUser = $request->session()->get('web_user', []);
 
         $user = (object) [
             'id' => $sessionUser['id'] ?? null,
             'name' => $sessionUser['name'] ?? 'User',
+            'username' => $sessionUser['username'] ?? null,
             'email' => $sessionUser['email'] ?? null,
             'role' => $sessionUser['role'] ?? 'user',
             'email_verified_at' => filled($sessionUser['email_verified_at'] ?? null)

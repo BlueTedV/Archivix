@@ -12,6 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->appendToGroup('web', \App\Http\Middleware\SecurityHeaders::class);
+
         $middleware->alias([
             'api.token' => \App\Http\Middleware\ApiTokenAuth::class,
             'admin.session' => \App\Http\Middleware\RequireAdminSession::class,

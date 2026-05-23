@@ -1,4 +1,4 @@
-package com.example.archivix
+package com.archivix.app
 
 import io.flutter.embedding.android.FlutterActivity
 

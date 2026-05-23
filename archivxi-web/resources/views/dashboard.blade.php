@@ -333,7 +333,6 @@
 
                 <div class="panel-actions">
                     <a href="{{ route('dashboard.posts.index') }}" class="btn btn-primary">View All Content</a>
-                    <a href="{{ route('dashboard.professor-verification.index') }}" class="btn btn-secondary">Professor Verification Queue</a>
                 </div>
             @endif
         </div>

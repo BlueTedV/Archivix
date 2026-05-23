@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\SupabaseAdminContentService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -106,11 +107,18 @@ class AdminContentController extends Controller
         string $contentType,
         string $contentId,
         SupabaseAdminContentService $contentService,
-    ): RedirectResponse {
+    ): JsonResponse|RedirectResponse {
         $type = $this->normalizeType($contentType);
         $userId = $this->sessionUserId($request);
 
         if ($userId === '') {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Sign in to react to this content.',
+                    'login_url' => route('login'),
+                ], 401);
+            }
+
             return redirect()->route('login');
         }
 
@@ -128,7 +136,27 @@ class AdminContentController extends Controller
                 (int) $data['reaction_value'],
             );
         } catch (RuntimeException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                ], 422);
+            }
+
             return back()->withErrors(['engagement' => $exception->getMessage()]);
+        }
+
+        if ($request->expectsJson()) {
+            $item = $contentService->getContentDetail($type, $contentId, $userId);
+
+            return response()->json([
+                'message' => 'Reaction updated.',
+                'engagement' => [
+                    'likes_count' => (int) ($item['likes_count'] ?? 0),
+                    'dislikes_count' => (int) ($item['dislikes_count'] ?? 0),
+                    'comments_count' => (int) ($item['comments_count'] ?? 0),
+                    'user_reaction' => $item['user_reaction'] ?? null,
+                ],
+            ]);
         }
 
         return back();
@@ -394,7 +422,7 @@ class AdminContentController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $item
+     * @param  array<string, mixed>  $item
      */
     private function authorizeContentVisibility(Request $request, array $item): void
     {
