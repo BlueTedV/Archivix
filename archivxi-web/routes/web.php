@@ -18,6 +18,8 @@ Route::get('/login', [UserAuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [UserAuthController::class, 'login'])->name('user.login.submit');
 Route::get('/register', [UserAuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [UserAuthController::class, 'register'])->name('user.register.submit');
+Route::get('/reset-password', [UserAuthController::class, 'showResetPassword'])->name('password.reset');
+Route::post('/reset-password', [UserAuthController::class, 'resetPassword'])->name('password.reset.submit');
 
 Route::middleware('web-user.session')->group(function () {
     Route::get('/home', [UserDashboardController::class, 'index'])->name('user.dashboard');

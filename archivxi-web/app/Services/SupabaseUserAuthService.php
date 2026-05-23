@@ -123,6 +123,36 @@ class SupabaseUserAuthService
         return $this->formatSessionUser($user, $email);
     }
 
+    public function resetPasswordWithAccessToken(string $accessToken, string $password): void
+    {
+        [$supabaseUrl, $anonKey] = $this->credentials();
+
+        try {
+            $response = Http::baseUrl($supabaseUrl)
+                ->acceptJson()
+                ->withHeaders([
+                    'apikey' => $anonKey,
+                    'Authorization' => 'Bearer '.$accessToken,
+                ])
+                ->put('/auth/v1/user', [
+                    'password' => $password,
+                ]);
+        } catch (\Throwable $exception) {
+            throw new SupabaseUserAuthException(
+                'Laravel tidak bisa menghubungi Supabase Auth untuk reset password.',
+            );
+        }
+
+        if ($response->failed()) {
+            throw new SupabaseUserAuthException(
+                $this->messageFromResponse(
+                    $response,
+                    'Link reset password tidak valid atau sudah kedaluwarsa.',
+                ),
+            );
+        }
+    }
+
     /**
      * @return array{0: string, 1: string}
      */
@@ -202,6 +232,14 @@ class SupabaseUserAuthService
 
         if (str_contains($normalized, 'user already registered')) {
             return 'Email ini sudah terdaftar. Silakan login dengan akun Supabase yang sama.';
+        }
+
+        if (
+            str_contains($normalized, 'expired')
+            || str_contains($normalized, 'invalid token')
+            || str_contains($normalized, 'jwt')
+        ) {
+            return 'Link reset password tidak valid atau sudah kedaluwarsa.';
         }
 
         return $message;

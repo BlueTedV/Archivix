@@ -124,6 +124,38 @@ class UserAuthController extends Controller
             ->with('success', 'Akun Supabase berhasil dibuat. Silakan cek email untuk verifikasi sebelum login.');
     }
 
+    public function showResetPassword(): View
+    {
+        return view('auth.reset-password');
+    }
+
+    public function resetPassword(
+        Request $request,
+        SupabaseUserAuthService $supabaseUserAuth,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'access_token' => ['required', 'string'],
+            'password' => ['required', 'confirmed', PasswordRule::min(6)],
+        ]);
+
+        try {
+            $supabaseUserAuth->resetPasswordWithAccessToken(
+                $data['access_token'],
+                $data['password'],
+            );
+        } catch (SupabaseUserAuthException $exception) {
+            return back()
+                ->withInput($request->only('access_token'))
+                ->withErrors([
+                    'password' => $exception->getMessage(),
+                ]);
+        }
+
+        return redirect()
+            ->route('login')
+            ->with('success', 'Password berhasil direset. Silakan login dengan password baru kamu.');
+    }
+
     public function logout(Request $request): RedirectResponse
     {
         $request->session()->forget(['web_user', 'admin_user', 'is_admin']);

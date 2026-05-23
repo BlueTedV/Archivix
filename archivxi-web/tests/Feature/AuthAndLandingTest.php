@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\SupabaseAdminContentService;
 use App\Services\SupabaseUserProfileService;
+use Illuminate\Support\Facades\Http;
 use Mockery;
 use Tests\TestCase;
 
@@ -25,6 +26,16 @@ class AuthAndLandingTest extends TestCase
         $response
             ->assertOk()
             ->assertSee('Masuk ke Panel Admin');
+    }
+
+    public function test_the_reset_password_page_loads(): void
+    {
+        $response = $this->get(route('password.reset'));
+
+        $response
+            ->assertOk()
+            ->assertSee('Reset password akunmu')
+            ->assertSee('Simpan Password Baru');
     }
 
     public function test_the_public_browse_page_loads_for_guests(): void
@@ -171,5 +182,33 @@ class AuthAndLandingTest extends TestCase
             ->assertSee('Edit Profile')
             ->assertSee('archivix_user')
             ->assertSee('Researching better archive flows.');
+    }
+
+    public function test_users_can_submit_a_new_password_from_the_reset_page(): void
+    {
+        config()->set('services.supabase.url', 'https://project-ref.supabase.co');
+        config()->set('services.supabase.anon_key', 'public-anon-key');
+
+        Http::fake([
+            'https://project-ref.supabase.co/auth/v1/user' => Http::response([], 200),
+        ]);
+
+        $response = $this->post(route('password.reset.submit'), [
+            'access_token' => 'recovery-access-token',
+            'password' => 'new-secret-123',
+            'password_confirmation' => 'new-secret-123',
+        ]);
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('success', 'Password berhasil direset. Silakan login dengan password baru kamu.');
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://project-ref.supabase.co/auth/v1/user'
+                && $request->method() === 'PUT'
+                && $request->header('apikey') === ['public-anon-key']
+                && $request->header('Authorization') === ['Bearer recovery-access-token']
+                && $request['password'] === 'new-secret-123';
+        });
     }
 }

@@ -587,5 +587,6 @@
 <footer class="footer">
     Copyright 2025 <span>Archivix</span> - Platform Dokumen Pembelajaran
 </footer>
+@yield('scripts')
 </body>
 </html>

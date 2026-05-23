@@ -96,6 +96,12 @@
         gap: 8px;
         cursor: pointer;
     }
+
+    .remember-row a {
+        color: #1d72da;
+        font-weight: 800;
+        text-decoration: none;
+    }
 </style>
 @endsection
 
@@ -214,6 +220,8 @@
                             <input type="checkbox" name="remember" value="1">
                             <span>Ingat saya</span>
                         </label>
+
+                        <a href="{{ route('password.reset') }}">Punya link reset?</a>
                     </div>
 
                     <button type="submit" class="btn btn-primary btn-full">

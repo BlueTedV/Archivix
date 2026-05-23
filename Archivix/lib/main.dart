@@ -95,7 +95,10 @@ class _StartupGateState extends State<StartupGate> {
 
   Future<void> _initialize() async {
     try {
-      await initializeArchivix();
+      await Future.wait([
+        initializeArchivix(),
+        Future<void>.delayed(const Duration(milliseconds: 1400)),
+      ]);
     } catch (error, stackTrace) {
       FlutterError.reportError(
         FlutterErrorDetails(
@@ -184,37 +187,39 @@ class StartupErrorApp extends StatelessWidget {
   }
 }
 
-class StartupLoadingScreen extends StatelessWidget {
+class StartupLoadingScreen extends StatefulWidget {
   const StartupLoadingScreen({super.key});
 
   @override
+  State<StartupLoadingScreen> createState() => _StartupLoadingScreenState();
+}
+
+class _StartupLoadingScreenState extends State<StartupLoadingScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat(reverse: true);
+
+  late final Animation<double> _fadeAnimation = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeInOut,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFE8E8E8),
+    return Scaffold(
+      backgroundColor: const Color(0xFFE8E8E8),
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ArchivixMark(),
-            SizedBox(height: 24),
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                color: Color(0xFF4A5568),
-              ),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Preparing your archive...',
-              style: TextStyle(
-                color: Color(0xFF374151),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+        child: FadeTransition(
+          opacity: Tween<double>(begin: 0.35, end: 1).animate(_fadeAnimation),
+          child: const _ArchivixMark(),
         ),
       ),
     );

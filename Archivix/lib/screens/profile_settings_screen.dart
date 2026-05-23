@@ -4,8 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_colors.dart';
 import '../core/utils/paper_review_status.dart';
 import 'auth/login_screen.dart';
+import 'help_support_screen.dart';
+import 'notification_settings_screen.dart';
 import 'papers/paper_detail_screen.dart';
 import 'posts/post_detail_screen.dart';
+import 'privacy_settings_screen.dart';
 
 enum _HistoryFilter { all, papers, posts }
 
@@ -373,10 +376,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showNotReadyMessage(String label) {
-    _showMessage('$label is not implemented yet.', AppColors.slatePrimary);
-  }
-
   List<Map<String, dynamic>> get _filteredHistoryItems {
     switch (_historyFilter) {
       case _HistoryFilter.papers:
@@ -663,7 +662,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildCommandButton(
                     icon: Icons.help_outline,
                     label: 'Help',
-                    onPressed: () => _showNotReadyMessage('Help & Support'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const HelpSupportScreen(),
+                      ),
+                    ),
                     color: AppColors.textSecondary,
                   ),
                 ],
@@ -958,7 +961,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Notifications',
             subtitle: 'Configure your notification preferences',
             accentColor: AppColors.slatePrimary,
-            onTap: () => _showNotReadyMessage('Notifications'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const NotificationSettingsScreen(),
+              ),
+            ),
           ),
           const SizedBox(height: 10),
           _buildSettingItem(
@@ -974,7 +981,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Privacy',
             subtitle: 'Manage privacy and visibility controls',
             accentColor: AppColors.slatePrimary,
-            onTap: () => _showNotReadyMessage('Privacy settings'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const PrivacySettingsScreen(),
+              ),
+            ),
           ),
           const SizedBox(height: 10),
           _buildSettingItem(
@@ -982,7 +993,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Help & Support',
             subtitle: 'Find guidance and contact support',
             accentColor: AppColors.slatePrimary,
-            onTap: () => _showNotReadyMessage('Help & Support'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const HelpSupportScreen(),
+              ),
+            ),
           ),
         ],
       ),
