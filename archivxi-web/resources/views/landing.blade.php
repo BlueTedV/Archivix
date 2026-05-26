@@ -177,6 +177,11 @@
         line-height: 1.6;
     }
 
+    .phone-preview img[hidden],
+    .phone-preview .preview-placeholder[hidden] {
+        display: none !important;
+    }
+
     .section {
         margin-top: 26px;
     }

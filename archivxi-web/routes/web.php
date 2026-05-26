@@ -8,6 +8,7 @@ use App\Http\Controllers\UserAuthController;
 use App\Http\Controllers\UserDashboardController;
 use App\Http\Controllers\UserProfileController;
 use App\Services\SupabaseAdminContentService;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -116,5 +117,41 @@ Route::post('/verify', function () {
 });
 
 Route::get('/download', function () {
-    return view('donwload');
-});
+    $definitions = [
+        [
+            'name' => 'Android',
+            'format' => 'APK',
+            'requirements' => 'Android 8.0+',
+            'filename' => 'archivix-android-latest.apk',
+            'title' => 'Unduh APK terbaru',
+            'empty_state' => 'APK belum diunggah.',
+        ],
+        [
+            'name' => 'Windows',
+            'format' => 'EXE',
+            'requirements' => 'Windows 10+',
+            'filename' => 'archivix-windows-latest.exe',
+            'title' => 'Unduh installer Windows',
+            'empty_state' => 'Installer Windows belum tersedia.',
+        ],
+    ];
+
+    $downloads = array_map(function (array $definition) {
+        $absolutePath = public_path('downloads/' . $definition['filename']);
+        $isAvailable = File::exists($absolutePath);
+
+        return [
+            ...$definition,
+            'is_available' => $isAvailable,
+            'url' => $isAvailable ? asset('downloads/' . $definition['filename']) : null,
+            'size' => $isAvailable ? number_format(File::size($absolutePath) / 1048576, 1) . ' MB' : null,
+            'updated_at' => $isAvailable
+                ? date('d M Y H:i', File::lastModified($absolutePath))
+                : null,
+        ];
+    }, $definitions);
+
+    return view('donwload', [
+        'downloads' => $downloads,
+    ]);
+})->name('download');
